@@ -39,7 +39,7 @@ Go long = <code>commitMint(0)</code> with ETH, then <code>claim(id, claimableEpo
 <div class="row"><input id="rd" value="0"> __SYM__ <button id="rdb" class="red" disabled>Redeem</button><span id="rdv" class="k"></span></div></div>
 
 <div class="card" style="border-color:#3a4a7a"><h2 style="color:#8fb3ff">Feed the Lighter short (v2) — keep your capital</h2>
-<div class="k">Add ETH + __SYM__ as liquidity in the __SYM__/ETH pool through the FeeFeeder2 contract. You get shares and can withdraw your principal any time. You earn nothing from it: every fee the position collects is sent to LighterBacking (→ USDG → PONS short on Robinhood Lighter) and the __SYM__ side is burned. Best ratio ≈ equal value of ETH and __SYM__; leftovers are refunded in the same tx.</div>
+<div class="k">Add ETH + __SYM__ as liquidity in the __SYM__/ETH pool through the FeeFeeder2 contract. You get shares and can withdraw your principal any time. You earn nothing from it: every fee the position collects is sent to LighterBacking (→ USDG → PONS short on Robinhood Lighter) and the __SYM__ side is burned. You must add BOTH sides (roughly equal value of ETH and __SYM__); leftovers are refunded in the same tx.</div>
 <div class="row"><input id="ffE" value="0"> ETH + <input id="ffP" value="0"> __SYM__ <button id="ffA" disabled>Approve __SYM__</button><button id="ffAdd" disabled>Add</button></div>
 <div class="row"><input id="ffW" value="0"> shares <button id="ffWd" class="red" disabled>Withdraw principal</button><span id="ffMine" class="k"></span></div>
 <div class="grid" id="ffStats" style="margin-top:10px"></div></div>
