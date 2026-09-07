@@ -2,6 +2,7 @@
 
 Live on Robinhood Chain (chainId 4663). Everything in this repo is deployed, verified, and running with no admin keys.
 
+- **How it works (full explainer): https://live.punzrh.com/how**
 - Site: https://punzrh.com · Live status: https://live.punzrh.com · Machine view: https://live.punzrh.com/live · Vault UI: https://live.punzrh.com/vault
 - X: https://x.com/PunzRH · Telegram feed (written by the contracts): https://t.me/PunzRh
 

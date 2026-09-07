@@ -1,0 +1,87 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>How __SYM__ works</title>
+<style>body{margin:0;background:#0b0f14;color:#e6edf3;font:16px/1.6 -apple-system,Inter,system-ui,sans-serif}.wrap{max-width:820px;margin:0 auto;padding:28px 20px 60px}
+h1{font-size:30px;margin:0 0 6px;line-height:1.2}h2{font-size:21px;margin:38px 0 10px;color:#fff}h3{font-size:16px;margin:22px 0 6px;color:#c9d1d9}.sub{color:#8b949e;margin-bottom:26px}
+p{margin:10px 0}.box{background:#111823;border:1px solid #1f2a37;border-radius:10px;padding:14px 16px;margin:14px 0}.k{color:#8b949e;font-size:13px}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14.5px}td,th{border-bottom:1px solid #1f2a37;padding:8px 6px;text-align:left;vertical-align:top}th{color:#8b949e;font-weight:600}
+code{background:#0f1620;border:1px solid #1f2a37;border-radius:5px;padding:1px 5px;font-size:13.5px;color:#c9d1d9}a{color:#58a6ff}.g{color:#3ddc84}.r{color:#ff5c5c}.o{color:#ffb347}
+.flow{font-family:ui-monospace,Menlo,monospace;font-size:13.5px;white-space:pre;overflow-x:auto;background:#0f1620;border:1px solid #1f2a37;border-radius:10px;padding:14px;line-height:1.5}
+.nav{font-size:14px;color:#8b949e;margin-bottom:18px}.nav a{margin-right:12px}ul{margin:8px 0 8px 20px}li{margin:4px 0}.warn{border-color:#5a4a1f}
+</style></head><body><div class="wrap">
+<div class="nav"><a href="/">live status</a><a href="/live">the machine</a><a href="/vault">vault</a><a href="https://github.com/PunzRH/punzrh">source</a><a href="https://t.me/PunzRh">telegram feed</a></div>
+<h1>How __SYM__ works</h1>
+<div class="sub">A meme coin whose backing is a tokenized PONS short that lives on-chain, reprices every minute, and that any holder can redeem. Everything below is verifiable; addresses are at the bottom.</div>
+
+<h2>1. The idea</h2>
+<p>On 6 Sep 2026 <a href="https://x.com/loraclexyz">@loraclexyz</a> tweeted: <i>"we need tokenized perp position on robinhood lighter, imagine pairing a meme coin with a PONS short."</i> __SYM__ is that, built the only way it can be done without trusting anyone: the perp itself is a contract on Robinhood Chain, its positions are ERC‑20 tokens, and the meme coin's fees buy the short side automatically.</p>
+<div class="box"><b>What makes it new.</b> Other "perp-backed" coins hold a real exchange position in a wallet a team controls. That position can be liquidated, can't be read by a contract, and can't be withdrawn by holders. In __SYM__ the position <i>is</i> a contract: no custody, no liquidation, no operator, and every holder can cash out their share of it, any time, by burning __SYM__.</div>
+
+<h2>2. What a perp short actually is</h2>
+<p>A perpetual short never sells the asset. It's a contract that pays you when the price falls and charges you when it rises, settled against an index price, with the other side of the trade as your counterparty. On Lighter or Hyperliquid the counterparty is an order book. In __SYM__'s vault the counterparty is whoever holds the long side of the same pool. Same instrument, different venue.</p>
+
+<h2>3. The vault: one pot of ETH, two sides</h2>
+<div class="flow">                 PONS price (2‑min TWAP from PONS's own Uniswap pool)
+                                   │
+                                   ▼   every 30 s: rebalance()
+   ┌───────────────┐   PONS ↑ : shorts pay longs   ┌────────────────┐
+   │   LONG side   │ ◄──────────────────────────── │   SHORT side   │
+   │  (ETH) lPONS  │ ────────────────────────────► │  (ETH)  sPONS  │
+   └───────────────┘   PONS ↓ : longs pay shorts   └────────────────┘</div>
+<p>The vault (<code>PonsPerpPool</code>) holds ETH in two balances, LONG and SHORT. Shares of each balance are ERC‑20 tokens: <b>lPONS</b> and <b>sPONS</b>. Every 30 seconds anyone can call <code>rebalance()</code>. It reads a 2‑minute time‑weighted average of PONS's price from PONS's own Uniswap v3 pool and moves ETH from the side that lost to the side that won:</p>
+<ul><li>PONS up x% → the SHORT balance pays x% of <i>itself</i> to LONG.</li><li>PONS down x% → the LONG balance pays x% of <i>itself</i> to SHORT.</li></ul>
+<p><b>NAV</b> of a share = side balance ÷ share supply. That's the price at which anyone mints or burns. Nothing is borrowed, nothing is liquidated, there is no funding rate and no operator; the only input is PONS's own market price.</p>
+<h3>Why a TWAP and a two‑step mint</h3>
+<p>A spot price can be wicked for one block. The 2‑minute average can't be moved cheaply. And because the average lags, minting at "today's" NAV while knowing where the price is heading would be free money, so mints and burns are two‑step: <code>commitMint</code> now, <code>claim</code> at the first rebalance after a full 2‑minute window has passed. You get the NAV of the future, not the past.</p>
+<h3>The skew, honestly</h3>
+<p>Because the losing side pays out of its own balance, the payoff is not always 1:1. If the short side is 5× the long side, a 1% PONS drop pays shorts only 0.2% (all the longs had), while a 1% PONS rise costs shorts the full 1%. The mirror is true for longs: they get ~5% per 1% up, lose 1% per 1% down. Capital on the thin side fixes it, and the thin side is where the deal is. <a href="/vault">Take it.</a></p>
+
+<h2>4. __SYM__: the coin that buys the short</h2>
+<div class="flow">  trader ──ETH──► __SYM__ pool (Uniswap v4, locked LP, 3% fee)
+                       │
+        ┌──────────────┴──────────────┐
+   ETH fee (buys)                  __SYM__ fee (sells)
+        │                                 │
+        ▼  harvest(), anyone, ~1/min      ▼
+   Backing contract ──► sPONS          🔥 burned
+        │
+        ├─ if sPONS market ≤ NAV+3% : buy sPONS on the market
+        └─ else                     : commitMint(SHORT) at NAV in the vault</div>
+<p>__SYM__ is a plain ERC‑20 with no owner and a fixed 1 billion supply. It trades on a hookless Uniswap v4 pool quoted in ETH. The liquidity is a single‑sided locked position: the launcher contract's only owner function is <code>collectFees()</code>, and its owner is the Backing contract. Nobody can pull the liquidity.</p>
+<p>Uniswap collects the 3% fee in whatever the trader paid with. Buys pay ETH, so <b>buy fees become sPONS</b>. Sells pay __SYM__, so <b>sell fees are burned</b>. <code>harvest()</code> on Backing does both, and anyone can call it; a keeper does, roughly once a minute.</p>
+
+<h2>5. Backing and the floor</h2>
+<p>The sPONS bought with fees sits in the <b>Backing</b> contract. It has no owner and no withdraw function. The only way sPONS leaves is <code>__SYM__.redeem(amount)</code>: burn __SYM__, receive your pro‑rata share of the sPONS, instantly. That share is the <b>floor</b> under every __SYM__. It started at zero at launch, rises with every buy (more sPONS in), every sell (fewer __SYM__ to share it), and every PONS drop (each sPONS worth more ETH). It cannot be taken out from under holders because there is no function that does that.</p>
+<p>Redeemed sPONS can be burned at the vault for ETH at NAV (two‑step, ~2 minutes) or sold on the sPONS/ETH market.</p>
+
+<h2>6. The peg bot, and why it pays holders</h2>
+<p>sPONS has a small public market (sPONS/ETH) so terminals can chart it and so Backing can buy instantly. Fees push that market above NAV; a keeper sells sPONS back down, keeping the chart at NAV. It buys from the vault at NAV and sells at NAV+1‑3%, so it earns a spread. <b>Everything it earns above its working inventory is sent to Backing</b>, i.e. to holders' floor. Those transfers show as 💝 in the <a href="/live">live feed</a>.</p>
+
+<h2>7. What nobody can do</h2>
+<table><tr><th>Contract</th><th>Admin power</th></tr>
+<tr><td>Vault (PonsPerpPool)</td><td>Owner is <code>0x0</code>. Mint/burn fee locked at 0. No pause, no upgrade.</td></tr>
+<tr><td>__SYM__ token</td><td>No owner function at all. Fixed supply, no mint.</td></tr>
+<tr><td>Locked LP (V4Launch)</td><td>Owner = Backing. Only function: collect fees. Liquidity can never be removed.</td></tr>
+<tr><td>Backing</td><td>No owner. <code>harvest()</code> and <code>claim()</code> are permissionless; sPONS leaves only via <code>redeem()</code>.</td></tr>
+<tr><td>Keepers (rebalance, harvest, peg)</td><td>Call public functions from an ops wallet. If they stop, anyone can call the same functions; nothing is trapped.</td></tr></table>
+
+<h2>8. What it is not</h2>
+<div class="box warn"><ul>
+<li>It is <b>not a borrow</b>. No PONS is sold. __SYM__ volume has zero effect on the PONS price.</li>
+<li>It is <b>not on Lighter</b>. A Lighter position lives on Lighter's rollup and can't be tokenized or read on‑chain. The vault is our own perp so the position can be a token holders own.</li>
+<li>It is <b>1×</b> and <b>pooled</b>: payoff depends on the balance between sides (section 3). The contract supports leverage up to 5× for a future vault; this one is 1×.</li>
+<li>The floor is small early. It's a share of fees, not of market cap. It only grows.</li>
+<li><b>No audit yet.</b> The code is short (~600 lines) and public. Read it.</li></ul></div>
+
+<h2>9. Verify it yourself, without our website</h2>
+<p>Every contract is verified on Blockscout. Open a contract → <b>Read/Write contract</b> → connect a wallet.</p>
+<ul><li>Vault: <code>sharePriceWei(1)</code> = sPONS NAV · <code>shortBal()</code>/<code>longBal()</code> · <code>epochCount()</code> = rebalances · <code>owner()</code> = 0x0</li>
+<li>Backing: <code>sponsBacking()</code> = sPONS held · <code>floorWeiPerToken()</code> = what 1 __SYM__ redeems for · <code>totalEthSwapped()</code> + <code>totalEthCommitted()</code> = fee ETH converted</li>
+<li>Go long: vault <code>commitMint(0)</code> with ETH → 2 min → <code>claim(id, claimableEpoch(id))</code>. Go short: <code>commitMint(1)</code>. Exit: <code>commitBurn(side, shares)</code>.</li>
+<li>Redeem: __SYM__ <code>redeem(amount)</code>.</li></ul>
+
+<h2>10. Addresses</h2>
+<table><tr><td>__SYM__</td><td><a href="https://robinhoodchain.blockscout.com/address/__COIN__?tab=contract"><code>__COIN__</code></a></td></tr>
+<tr><td>Vault</td><td><a href="https://robinhoodchain.blockscout.com/address/__VAULT__?tab=contract"><code>__VAULT__</code></a></td></tr>
+<tr><td>Backing</td><td><a href="https://robinhoodchain.blockscout.com/address/__BACKING__?tab=contract"><code>__BACKING__</code></a></td></tr>
+<tr><td>sPONS</td><td><code>__SPONS__</code></td></tr><tr><td>lPONS</td><td><code>__LPONS__</code></td></tr></table>
+<p class="k">Source: <a href="https://github.com/PunzRH/punzrh">github.com/PunzRH/punzrh</a> · Live: <a href="/">live.punzrh.com</a> · Feed: <a href="https://t.me/PunzRh">t.me/PunzRh</a></p>
+</div></body></html>

@@ -269,6 +269,8 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         elif self.path.startswith("/live"):
             body = LIVE_PAGE.encode(); ct = "text/html; charset=utf-8"
+        elif self.path.startswith("/how"):
+            body = HOW_PAGE.encode(); ct = "text/html; charset=utf-8"
         else:
             body = PAGE.encode(); ct = "text/html; charset=utf-8"
         self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Content-Length", str(len(body))); self.end_headers()
@@ -347,6 +349,12 @@ try:
     LIVE_PAGE = open(os.path.join(HERE, "live_page.html")).read()
 except FileNotFoundError:
     LIVE_PAGE = "<p>live_page.html missing</p>"
+try:
+    HOW_PAGE = open(os.path.join(HERE, "how_page.html")).read()
+except FileNotFoundError:
+    HOW_PAGE = "<p>how_page.html missing</p>"
+HOW_PAGE = (HOW_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__LPONS__", DEP.get("longToken_lPONS", ""))
+            .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", "")))
 LIVE_PAGE = (LIVE_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__LPONS__", DEP.get("longToken_lPONS", ""))
              .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", "")))
 LONG_PAGE = (LONG_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__LPONS__", DEP.get("longToken_lPONS", ""))
