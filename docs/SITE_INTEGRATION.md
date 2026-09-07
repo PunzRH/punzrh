@@ -49,7 +49,7 @@ the contract name.
 | Locked LP (V4Launch) | `0xE543a5fe1Ebe504FdDdD0D41C8B59D3937c73e90` |
 | sPONS/ETH market (SeedPool) | `0x4e74795123530fa20EbCDCc6594DfeF389C4d766` |
 | **LighterBacking v2** | `0x886AE5d94E5b85A0FA40bA766D1A4689F53d1d39` — Lighter account **23662** |
-| **FeeFeeder2 (boost)** | `0x9B81c0577cCEBfef2920fd061539CDc6235377ef` |
+| FeeFeeder2 (boost) | **BRICKED — remove every link and the boost form until a fixed contract is announced** |
 | FeeFeeder (original, locked) | `0x40f0e263f6C3E7079E1897941fc27490734c55E7` |
 | PONS | `0x39dBED3a2bd333467115dE45665cC57F813C4571` |
 

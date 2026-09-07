@@ -56,7 +56,6 @@
   },
   "vaultOwner": "renounced (fee locked at 0)",
   "lighterBacking": "0x886AE5d94E5b85A0FA40bA766D1A4689F53d1d39",
-  "feeFeeder": "0x9B81c0577cCEBfef2920fd061539CDc6235377ef",
   "lighter": {
     "bridge": "0x94bAB9693Ba2f6358507eFfcbd372b0660AFfF9d",
     "ponsMarket": 44,
@@ -79,5 +78,6 @@
   "lighterBacking_deprecated": "0x106CFa410Bdd7D68fFe29AA43BC80BFaca758af2",
   "feeFeeder_deprecated": "0xC943Ea6b597849b3Fc25B653b677c737Fc88C99C",
   "feeFeeder_locked": "0x40f0e263f6C3E7079E1897941fc27490734c55E7",
-  "feeFeeder_kind": "FeeFeeder2"
+  "feeFeeder_bricked": "0x9B81c0577cCEBfef2920fd061539CDc6235377ef",
+  "feeFeeder_bricked_note": "FeeFeeder2 0x9B81: recenter() re-added 0 liquidity after a one-sided (all-ETH) range exit; every function now reverts. 1.111 ETH of depositor principal is permanently stuck. Do not link or use."
 }

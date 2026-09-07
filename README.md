@@ -50,7 +50,7 @@ All functions are public. On Blockscout, open the contract → **Write contract*
 | Contract | Address |
 |---|---|
 | LighterBacking (v2) | `0x886AE5d94E5b85A0FA40bA766D1A4689F53d1d39` — Lighter account 23662 |
-| FeeFeeder2 (principal-preserving LP → v2) | `0x9B81c0577cCEBfef2920fd061539CDc6235377ef` |
+| FeeFeeder2 (**BRICKED, do not use**) | `0x9B81c0577cCEBfef2920fd061539CDc6235377ef` — recenter() re-added zero liquidity after a one-sided range exit; all functions revert; 1.11 ETH of the developer's principal is stuck. Post-mortem in docs/. |
 | FeeFeeder (original, locked LP → v2) | `0x40f0e263f6C3E7079E1897941fc27490734c55E7` |
 
 - **Custody is trustless:** all collateral sits in the contract's own Lighter account. Lighter's bridge only pays withdrawals to the account's L1 owner (the contract), and L2 transfers to other accounts require the owner's L1 private key, which does not exist.
