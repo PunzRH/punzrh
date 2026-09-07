@@ -64,8 +64,18 @@ def main():
         import peg_keeper
         peg = peg_keeper.Peg(w3, acct.address, send, DEP); peg.ensure_approvals(); last_peg = 0
         print(f"peg keeper ON | sPONS/ETH pool {DEP['spons_eth_pool']} | band {peg_keeper.BAND_BPS} bps | every {os.environ.get('PEG_SECS', '60')}s", flush=True)
+    # Backing v2 (Lighter short): harvest LP fees → fund the short → settle redeem claims. Permissionless calls; keeper pays gas.
+    v2 = None
+    if DEP.get("lighterBacking"):
+        import lighter_keeper
+        v2 = lighter_keeper.LighterKeeper(w3, send, DEP); last_v2 = 0
+        print(f"v2 keeper ON | LighterBacking {DEP['lighterBacking']} | FeeFeeder {DEP.get('feeFeeder')}", flush=True)
     while True:
         try:
+            if v2 and time.time() - last_v2 > float(os.environ.get("V2_SECS", "60")):
+                last_v2 = time.time()
+                try: v2.step()
+                except Exception as ex: print(f"[{now()}] v2 error: {str(ex)[:120]}", flush=True)
             if peg and time.time() - last_peg > float(os.environ.get("PEG_SECS", "60")):
                 last_peg = time.time()
                 try: peg.step()

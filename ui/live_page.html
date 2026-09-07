@@ -45,6 +45,7 @@ svg{width:100%;height:auto;display:block}
  <g id="dots"></g>
 </svg>
 <div class="tiles" id="tiles"></div>
+<div id="v2box" class="tile" hidden style="margin-top:12px;border-color:#2b5a3b"><div class="k" style="color:#3ddc84;font-weight:600">Backing v2 · real PONS short on Robinhood Lighter, custodied by a contract</div><div id="v2txt" style="font-size:13px;line-height:1.6;margin-top:4px"></div></div>
 </div>
 <div class="card"><div class="lbl" style="font-size:14px;font-weight:600;margin-bottom:6px">Live feed <span id="cnt" style="color:#8b949e;font-weight:400"></span></div><div class="feed" id="feed"></div></div>
 </div>
@@ -77,6 +78,11 @@ async function stats(){const m=await (await fetch('/metrics')).json();const h=aw
   $('t_price').textContent=`price ${(m.marketPriceEth||0).toExponential(2)} ETH`;
   const backed=m.marketPriceEth?100*m.backingPerPunzEth/m.marketPriceEth:0;
   const tiles=[['fees → short (ETH)',(m.feesToShortEth||0).toFixed(3)],['sPONS in Backing',(m.sponsBacking||0).toFixed(1)],['__SYM__ burned',((m.burned||0)/1e6).toFixed(2)+'M'],['floor / price',backed.toFixed(2)+'%'],['PONS since launch',h.length?((n.pons/h[0].pons-1)*100).toFixed(2)+'%':'…'],['sPONS NAV since launch',h.length?((n.nav_s/h[0].nav_s-1)*100).toFixed(2)+'%':'…']];
-  $('tiles').innerHTML=tiles.map(t=>`<div class="tile ${last[t[0]]!==undefined&&last[t[0]]!==t[1]?'flash':''}"><div class="k">${t[0]}</div><div class="v">${t[1]}</div></div>`).join('');tiles.forEach(t=>last[t[0]]=t[1])}
+  $('tiles').innerHTML=tiles.map(t=>`<div class="tile ${last[t[0]]!==undefined&&last[t[0]]!==t[1]?'flash':''}"><div class="k">${t[0]}</div><div class="v">${t[1]}</div></div>`).join('');tiles.forEach(t=>last[t[0]]=t[1]);
+  if(m.lighter_account!==undefined){$('v2box').hidden=false;
+    const sz=m.lighter_position_pons||0, ent=m.lighter_entry||0, upnl=m.lighter_upnl||0;
+    $('v2txt').innerHTML=`Lighter account <b>#${m.lighter_account}</b> (owner = LighterBacking contract) · collateral <b>${(m.lighter_collateral||0).toFixed(2)} USDG</b> · `+
+      (sz?`short <b>${Math.abs(sz).toFixed(1)} PONS</b> @ ${ent.toFixed(5)} · unrealised <b class="${upnl>=0?'g':'r'}">${upnl>=0?'+':''}${upnl.toFixed(3)} USDG</b> · liq ${(m.lighter_liq||0).toFixed(4)}`:`no position yet`)+
+      ` · v2 floor <b>${((m.v2_floor_usdg_per_punz||0)*1e6).toFixed(3)} USDG per 1M __SYM__</b> · fee-feeder: ${(m.ff_eth_fed||0).toFixed(4)} ETH fed, ${((m.ff_punz_burned||0)/1e6).toFixed(2)}M burned, ${m.ff_in_range?'in range':'out of range'}`;}}
 stats();feed();setInterval(stats,10000);setInterval(feed,6000);
 </script></body></html>

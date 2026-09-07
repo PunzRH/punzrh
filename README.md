@@ -44,6 +44,20 @@ All functions are public. On Blockscout, open the contract → **Write contract*
 - Exit: vault `commitBurn(side, shares)` → claim ETH
 - Redeem PUNZ: PUNZ `redeem(amount)` → sPONS paid instantly from Backing
 
+
+## Backing v2 — a real PONS short on Robinhood Lighter, custodied by a contract (live 7 Sep 2026)
+
+| Contract | Address |
+|---|---|
+| LighterBacking (v2) | `0x886AE5d94E5b85A0FA40bA766D1A4689F53d1d39` — Lighter account 23662 |
+| FeeFeeder (locked LP → v2) | `0x40f0e263f6C3E7079E1897941fc27490734c55E7` |
+
+- **Custody is trustless:** all collateral sits in the contract's own Lighter account. Lighter's bridge only pays withdrawals to the account's L1 owner (the contract), and L2 transfers to other accounts require the owner's L1 private key, which does not exist.
+- **Opening needs a key:** Lighter's L1 `createOrder` is reduce-only, so the short is opened by a keeper holding a trading API key registered once on the account (`registerKey`). That key can trade and nothing else; worst case is bad trades, never theft.
+- **Exit is forced:** `redeem(punz)` burns PUNZ, L1-force-closes that share of the short (reduce-only IOC, no key needed) and withdraws that share of the estimated equity. USDG lands on the contract in ~1–7 min; `settle()` pays claims in order.
+- **Feed:** `FeeFeeder` is a locked liquidity position in the PUNZ/ETH pool anyone can add to and nobody can remove. Its ETH fees go to LighterBacking (→ USDG → the short), its PUNZ fees burn.
+- Rehearsal contracts (the $20 experiments): `src/LighterProbe.sol`, `src/LighterProbe2.sol`. Robinhood Lighter API: `https://api.rh.lighter.xyz`.
+
 ## Build & test
 
 ```

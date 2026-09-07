@@ -54,5 +54,28 @@
     },
     "config_js": "window.PUNZ_CONFIG = Object.freeze({ tokenAddress: \"0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896\", chartUrl: \"https://gmgn.ai/rh/token/0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896\", metricsUrl: \"https://punzrh.com/metrics\" });"
   },
-  "vaultOwner": "renounced (fee locked at 0)"
+  "vaultOwner": "renounced (fee locked at 0)",
+  "lighterBacking": "0x886AE5d94E5b85A0FA40bA766D1A4689F53d1d39",
+  "feeFeeder": "0x40f0e263f6C3E7079E1897941fc27490734c55E7",
+  "lighter": {
+    "bridge": "0x94bAB9693Ba2f6358507eFfcbd372b0660AFfF9d",
+    "ponsMarket": 44,
+    "sizeDecimals": 1,
+    "priceDecimals": 5,
+    "usdgAsset": 3,
+    "leverageBps": 15000,
+    "probe": "0x1D9049E4DD61136F2AE854005493cD5fe6FF9880",
+    "probeAccount": 23653,
+    "deployedAt": "2026-09-07 04:53",
+    "account": 23662,
+    "apiKeySlot": 4,
+    "api": "https://api.rh.lighter.xyz",
+    "chainId": 466324,
+    "probe2": "0x284603B09652c6BEf88977E25D5B409C35A903fb",
+    "probe2Account": 23656,
+    "redeployedAt": "2026-09-07 05:23",
+    "note": "L1 createOrder is reduce-only; opening via registered trading key; custody trustless"
+  },
+  "lighterBacking_deprecated": "0x106CFa410Bdd7D68fFe29AA43BC80BFaca758af2",
+  "feeFeeder_deprecated": "0xC943Ea6b597849b3Fc25B653b677c737Fc88C99C"
 }

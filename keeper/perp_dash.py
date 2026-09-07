@@ -63,6 +63,30 @@ def snapshot():
         s["eth_to_short"] = (BACKING.functions.totalEthCommitted().call() + BACKING.functions.totalEthSwapped().call()) / 1e18  # vault path + instant market path
         s["burned"] = BACKING.functions.totalCoinBurned().call() / 1e18
         s["implied"] = s["floor"]; s["spons_per_ts"] = 0
+        # ---- Backing v2 (Lighter short) + FeeFeeder, if deployed
+        if DEP.get("lighterBacking"):
+            try:
+                if "LB" not in globals():
+                    globals()["LB"] = w3.eth.contract(address=Web3.to_checksum_address(DEP["lighterBacking"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "LighterBacking.sol", "LighterBacking.json")))["abi"])
+                    globals()["FF"] = w3.eth.contract(address=Web3.to_checksum_address(DEP["feeFeeder"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "FeeFeeder.sol", "FeeFeeder.json")))["abi"]) if DEP.get("feeFeeder") else None
+                s["v2_collateral_usdg"] = LB.functions.collateralUnits().call() / 1e6
+                s["v2_short_pons"] = LB.functions.baseTicks().call() / 10 ** DEP["lighter"]["sizeDecimals"]
+                s["v2_equity_usdg"] = LB.functions.equityUnits().call() / 1e6
+                s["v2_floor_usdg_per_punz"] = LB.functions.floorUnitsPerPunz().call() / 1e6
+                s["v2_eth_waiting"] = w3.eth.get_balance(LB.address) / 1e18
+                if FF: s["ff_liquidity"] = FF.functions.liquidity().call(); s["ff_eth_fed"] = FF.functions.totalEthFed().call() / 1e18; s["ff_punz_burned"] = FF.functions.totalPunzBurned().call() / 1e18; s["ff_in_range"] = FF.functions.inRange().call()
+                # live view of the position from the Robinhood Lighter API (display only; the contract never depends on it)
+                import urllib.request as _u
+                acct = LB.functions.accountIndex().call()
+                if acct:
+                    a = json.load(_u.urlopen(f"https://api.rh.lighter.xyz/api/v1/account?by=index&value={acct}", timeout=15))["accounts"][0]
+                    s["lighter_account"] = acct; s["lighter_collateral"] = float(a.get("collateral") or 0)
+                    for p in a.get("positions", []):
+                        if p.get("market_id") == DEP["lighter"]["ponsMarket"]:
+                            s["lighter_position_pons"] = float(p.get("position") or 0) * (-1 if str(p.get("sign")) in ("-1", "-") else 1)
+                            s["lighter_entry"] = float(p.get("avg_entry_price") or 0); s["lighter_upnl"] = float(p.get("unrealized_pnl") or 0); s["lighter_liq"] = float(p.get("liquidation_price") or 0)
+            except Exception as e:
+                print("v2 snapshot fail:", str(e)[:80], flush=True)
     else:
         spt = v4_price(ID_TS_SPONS)
         s.update({"spons_per_ts": spt, "implied": spt * nav_s, "ethpool": 1 / v4_price(ID_TS_ETH)})
@@ -256,7 +280,11 @@ class H(BaseHTTPRequestHandler):
                                # extended live-index fields (same names as site/functions/metrics.js)
                                "ponsPriceEth": n.get("pons"), "longNavEth": n.get("nav_l"), "sponsBacking": n.get("backing_spons"),
                                "feesToShortEth": n.get("eth_to_short"), "burned": n.get("burned"),
-                               "vaultOwner": "0x0000000000000000000000000000000000000000", "source": "chain via keeper host, 30s poll"}).encode()
+                               "vaultOwner": "0x0000000000000000000000000000000000000000", "source": "chain via keeper host, 30s poll",
+                               # Backing v2 (real PONS short on Robinhood Lighter) — present once deployed
+                               **{k: n.get(k) for k in ("v2_collateral_usdg", "v2_short_pons", "v2_equity_usdg", "v2_floor_usdg_per_punz", "v2_eth_waiting",
+                                                        "ff_eth_fed", "ff_punz_burned", "ff_in_range", "lighter_account", "lighter_collateral",
+                                                        "lighter_position_pons", "lighter_entry", "lighter_upnl", "lighter_liq") if k in n}}).encode()
             ct = "application/json"
             self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
