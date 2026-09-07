@@ -60,7 +60,7 @@ def snapshot():
         s["ethpool"] = 1 / v4_price(ID_COIN_ETH)                       # coin market price in ETH
         s["floor"] = BACKING.functions.floorWeiPerToken().call() / 1e18  # backing per coin in ETH
         s["backing_spons"] = BACKING.functions.sponsBacking().call() / 1e18
-        s["eth_to_short"] = BACKING.functions.totalEthCommitted().call() / 1e18
+        s["eth_to_short"] = (BACKING.functions.totalEthCommitted().call() + BACKING.functions.totalEthSwapped().call()) / 1e18  # vault path + instant market path
         s["burned"] = BACKING.functions.totalCoinBurned().call() / 1e18
         s["implied"] = s["floor"]; s["spons_per_ts"] = 0
     else:
