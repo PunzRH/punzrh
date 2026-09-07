@@ -11,6 +11,13 @@ button.red{background:#b62324}button.alt{background:#1f6feb}input{background:#0b
 sPONS = the short (what backs __SYM__), lPONS = the long. Everything here is a direct call to public contracts from your wallet; nobody is in the middle. Mints and burns settle at NAV
 after a full 2-minute price window so the oracle can't be front-run. <span class="warn">Not advice. Both sides can lose.</span></div>
 
+<div class="card" style="border-color:#2b5a3b"><h2 style="color:#3ddc84">Don't trust this page? You don't have to.</h2>
+<div class="k" style="line-height:1.5">Connecting only reads your address. Minting is a plain ETH send to the vault; nothing here ever asks for a token approval except burning your own lPONS/sPONS.
+Every contract is <b>verified on Blockscout</b>, so you can do all of this there instead, on an explorer you already know:
+<a href="https://robinhoodchain.blockscout.com/address/__VAULT__?tab=write_contract" target="_blank">vault: write contract</a> ·
+<a href="https://robinhoodchain.blockscout.com/address/__COIN__?tab=write_contract" target="_blank">PUNZ: redeem</a> ·
+<a href="https://robinhoodchain.blockscout.com/address/__VAULT__?tab=contract" target="_blank">read the source</a>.
+Go long = <code>commitMint(0)</code> with ETH, then <code>claim(id, claimableEpoch(id))</code> ~2 min later. This page is a single HTML file with no backend; view-source it.</div></div>
 <div class="card"><div class="grid" id="stats"></div></div>
 
 <div class="card"><h2>Wallet</h2><div class="row"><button id="c">Connect wallet (Robinhood Chain)</button><span id="who" class="k"></span></div><div class="grid" id="mine" style="margin-top:10px"></div></div>
