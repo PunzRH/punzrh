@@ -46,8 +46,13 @@ class Peg:
         self.w3, self.me, self.send, self.log = w3, acct_address, send, log
         self.spons = Web3.to_checksum_address(dep["shortToken_sPONS"])
         self.vault = w3.eth.contract(address=Web3.to_checksum_address(dep["pool"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "PonsPerpPool.sol", "PonsPerpPool.json")))["abi"])
-        self.seed = w3.eth.contract(address=Web3.to_checksum_address(dep["spons_eth_pool"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "SeedPool.sol", "SeedPool.json")))["abi"])
-        self.fee, self.ts = self.seed.functions.fee().call(), self.seed.functions.tickSpacing().call()
+        if dep.get("peg_range"):   # re-seatable ops-owned range (PegRange); SeedPool's fixed range is legacy
+            self.seed = w3.eth.contract(address=Web3.to_checksum_address(dep["peg_range"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "PegRange.sol", "PegRange.json")))["abi"])
+            k = self.seed.functions.key().call(); self.fee, self.ts = int(k[2]), int(k[3]); self.reseatable = True
+        else:
+            self.seed = w3.eth.contract(address=Web3.to_checksum_address(dep["spons_eth_pool"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "SeedPool.sol", "SeedPool.json")))["abi"])
+            self.fee, self.ts = self.seed.functions.fee().call(), self.seed.functions.tickSpacing().call(); self.reseatable = False
+        self.last_reseat = 0
         self.key = (ZERO, self.spons, self.fee, self.ts, ZERO)
         pid = Web3.keccak(encode(["address", "address", "uint24", "int24", "address"], list(self.key)))
         self.slot = Web3.keccak(pid + (6).to_bytes(32, "big"))
@@ -93,6 +98,21 @@ class Peg:
         bal_s, bal_e = self.tok.functions.balanceOf(self.me).call(), self.w3.eth.get_balance(self.me)
         spend = max(0, bal_e - GAS_RESERVE)
         acted = None
+        # re-seat the range when NAV (or the pool) has walked out of it — the failure mode of the fixed SeedPool on 7 Sep
+        if self.reseatable and time.time() - self.last_reseat > 1800:
+            out = L == 0 or not (lo <= n < hi) or not (lo <= s < hi)
+            if out:
+                self.last_reseat = time.time()
+                if L > 0: self.send(self.seed.functions.exit()); bal_s, bal_e = self.tok.functions.balanceOf(self.me).call(), self.w3.eth.get_balance(self.me); spend = max(0, bal_e - GAS_RESERVE)
+                eth_in = min(spend // 2, Web3.to_wei(0.03, "ether")); s_in = bal_s // 2
+                if eth_in > Web3.to_wei(0.003, "ether") and s_in > Web3.to_wei(5, "ether"):
+                    if self.tok.functions.allowance(self.me, self.seed.address).call() < s_in: self.send(self.tok.functions.approve(self.seed.address, 2 ** 256 - 1))
+                    h, st = self.send(self.seed.functions.seed(s_in), value=eth_in)
+                    self.log(f"[{now()}] peg: RESEAT range around NAV with {eth_in/1e18:.4f} ETH + up to {s_in/1e18:.1f} sPONS {'OK' if st == 1 else 'REVERTED'} {h[:12]}…")
+                    s, n, ratio = self.state(); lo, hi, L = self.position()
+                    bal_s, bal_e = self.tok.functions.balanceOf(self.me).call(), self.w3.eth.get_balance(self.me); spend = max(0, bal_e - GAS_RESERVE)
+                else:
+                    self.log(f"[{now()}] peg: range out but not enough inventory to re-seat (ETH spend {spend/1e18:.4f}, sPONS {bal_s/1e18:.1f})")
         if ratio > 1 + BAND_BPS / 1e4:
             # sPONS too expensive -> sell sPONS (price sPONS/ETH rises toward n). Only the in-range part consumes liquidity.
             start = max(s, lo)

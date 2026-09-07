@@ -82,5 +82,7 @@
   "feeFeeder_bricked_note": "FeeFeeder2 0x9B81: recenter() re-added 0 liquidity after a one-sided (all-ETH) range exit; every function now reverts. 1.111 ETH of depositor principal is permanently stuck. Do not link or use.",
   "feeFeeder": "0xb7D53B0Adac72cAA6eb94b39aa5C81DAEbCec17E",
   "feeFeeder_kind": "FeeFeeder3",
-  "feeFeeder_halfRange": 4000
+  "feeFeeder_halfRange": 4000,
+  "peg_range": "0x1a2E68cdfb1e1961F2C5121F875025A1e4d765fE",
+  "spons_eth_pool_legacy_note": "SeedPool 0x4e74\u2026 (dev-owned, fixed range 78300..81960) fell out of NAV's range on 7 Sep; the peg now uses PegRange (ops-owned, re-seatable)"
 }
