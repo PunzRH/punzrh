@@ -1,0 +1,58 @@
+{
+  "chainId": 4663,
+  "deployer": "0xfccc196Ec8894f98BB3A04048E823a5f18F5557e",
+  "name": "PUNZ",
+  "symbol": "PUNZ",
+  "launchedAt": "2026-09-07 00:36",
+  "design": "POONS v2: ETH-quoted locked curve; fee harvested into PonsPerpPool SHORT side; holders redeem coin for sPONS",
+  "pool": "0xd1C0B5E2eA749F738da9E4c13858b4fEb0f6C39D",
+  "longToken_lPONS": "0xaD19306aB3b613D49BaC7C52bEe3eD64A184F5d2",
+  "shortToken_sPONS": "0x7c5e0547bcCdd474B3922188AB8d91d32a10DEf9",
+  "spons_eth_pool": "0x4e74795123530fa20EbCDCc6594DfeF389C4d766",
+  "coin": "0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896",
+  "backing": "0xfCD2b6a649b4Bbf417D24B5A743D1A067cC3A348",
+  "launcher_lockedLP": "0xE543a5fe1Ebe504FdDdD0D41C8B59D3937c73e90",
+  "startTick": 200311,
+  "span": 69000,
+  "feeBps": 300,
+  "poolKey": {
+    "currency0": "native ETH",
+    "currency1": "0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896",
+    "fee": 30000,
+    "tickSpacing": 200,
+    "hooks": "0x0"
+  },
+  "v4_test_launch": {
+    "coin_TSPONS": "0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896"
+  },
+  "devBuy": {
+    "pct": 1.0,
+    "ethGross": 0.021095056887993992,
+    "file": "dev_buy.json",
+    "simulated": true
+  },
+  "site": {
+    "cloudflare_env": {
+      "TOKEN": "0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896",
+      "PERP": "0xd1C0B5E2eA749F738da9E4c13858b4fEb0f6C39D",
+      "BACKING": "0xfCD2b6a649b4Bbf417D24B5A743D1A067cC3A348",
+      "SLOT0_KEY": "0xedd2edcb884b205e3ea525052a2c314c32e91e500fb51e1cdcd69376860561c0",
+      "RPC_URL": "<secret: your Chainstack URL>"
+    },
+    "poolId": "0xda7d3791030e4ef611658a078879501ed5c18eaf3a4c9c1a08cf1eefb1d707d9",
+    "token_json": {
+      "name": "PUNZ",
+      "symbol": "PUNZ",
+      "description": "The other side of pons. A meme coin backed by a tokenized PONS short on Robinhood Chain: 3% of every trade buys sPONS that backs the coin; any PUNZ can be redeemed for its share.",
+      "image": "https://punzrh.com/assets/punz-logo.png",
+      "website": "https://punzrh.com",
+      "twitter": "https://x.com/PunzRH",
+      "telegram": "",
+      "chainId": 4663,
+      "address": "0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896",
+      "decimals": 18
+    },
+    "config_js": "window.PUNZ_CONFIG = Object.freeze({ tokenAddress: \"0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896\", chartUrl: \"https://gmgn.ai/rh/token/0x03a0e8FC8b5485CF6F66B6264F1fE295F4C24896\", metricsUrl: \"https://punzrh.com/metrics\" });"
+  },
+  "vaultOwner": "renounced (fee locked at 0)"
+}

@@ -1,0 +1,96 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__SYM__ vault — go long, go short, redeem</title>
+<style>body{margin:0;background:#0b0f14;color:#e6edf3;font:15px -apple-system,Inter,system-ui,sans-serif}.wrap{max-width:860px;margin:0 auto;padding:24px}
+h1{font-size:22px;margin:0 0 6px}h2{font-size:15px;margin:0 0 8px}.sub{color:#8b949e;margin-bottom:16px;line-height:1.45}.card{background:#111823;border:1px solid #1f2a37;border-radius:10px;padding:16px;margin-bottom:14px}
+.k{color:#8b949e;font-size:12px}.v{font-size:19px;font-weight:600;font-variant-numeric:tabular-nums}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+button{background:#238636;color:#fff;border:0;border-radius:8px;padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer}button:disabled{opacity:.45;cursor:default}
+button.red{background:#b62324}button.alt{background:#1f6feb}input{background:#0b0f14;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:9px;font-size:15px;width:130px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:700px){.two{grid-template-columns:1fr}}
+.log{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#8b949e;white-space:pre-wrap;margin-top:10px}a{color:#58a6ff}.up{color:#3fb950}.dn{color:#f85149}.warn{color:#d29922}code{color:#c9d1d9;font-size:12px}</style></head><body><div class="wrap">
+<h1>__SYM__ vault — go long, go short, redeem</h1>
+<div class="sub">One pool of ETH, a long side and a short side. Every minute it reads PONS's price from PONS's own Uniswap pool; the losing side pays the winning side out of its own balance.
+sPONS = the short (what backs __SYM__), lPONS = the long. Everything here is a direct call to public contracts from your wallet; nobody is in the middle. Mints and burns settle at NAV
+after a full 2-minute price window so the oracle can't be front-run. <span class="warn">Not advice. Both sides can lose.</span></div>
+
+<div class="card"><div class="grid" id="stats"></div></div>
+
+<div class="card"><h2>Wallet</h2><div class="row"><button id="c">Connect wallet (Robinhood Chain)</button><span id="who" class="k"></span></div><div class="grid" id="mine" style="margin-top:10px"></div></div>
+
+<div class="two">
+<div class="card"><h2 class="up">Long PONS (mint lPONS)</h2><div class="k">Pays <span id="levL">…</span> per +1% PONS, loses 1% per −1% PONS. No liquidation.</div>
+<div class="row"><input id="amtL" value="0.1"> ETH <button id="mL" disabled>Commit long</button></div>
+<div class="k" style="margin-top:10px">Exit: burn lPONS for ETH at NAV</div><div class="row"><input id="bL" value="0"> lPONS <button id="bbL" class="red" disabled>Burn long</button></div></div>
+
+<div class="card"><h2 class="dn">Short PONS (mint sPONS)</h2><div class="k">Same thing __SYM__ fees do every minute. Pays <span id="levS">…</span> per −1% PONS, loses 1% per +1% PONS.</div>
+<div class="row"><input id="amtS" value="0.1"> ETH <button id="mS" disabled>Commit short</button></div>
+<div class="k" style="margin-top:10px">Exit: burn sPONS for ETH at NAV (or just sell sPONS on its ETH pool)</div><div class="row"><input id="bS" value="0"> sPONS <button id="bbS" class="red" disabled>Burn short</button></div></div>
+</div>
+
+<div class="card"><h2>Claim</h2><div class="k">Mints and burns are two-step. About 2–3 minutes after committing, claim here. Claims pay lPONS/sPONS (mints) or ETH (burns).</div>
+<div class="row"><button id="cl" class="alt" disabled>Claim matured commits</button><span id="pend" class="k"></span></div></div>
+
+<div class="card"><h2>Redeem __SYM__ for its share of the short</h2><div class="k">Burns your __SYM__ and pays your pro-rata sPONS out of the Backing contract. Instant, no waiting. This is the floor.</div>
+<div class="row"><input id="rd" value="0"> __SYM__ <button id="rdb" class="red" disabled>Redeem</button><span id="rdv" class="k"></span></div></div>
+
+<div class="log" id="log"></div>
+<div class="k" style="margin-top:14px">Vault <code>__VAULT__</code> · sPONS <code>__SPONS__</code> · lPONS <code>__LPONS__</code> · __SYM__ <code>__COIN__</code> · Backing <code>__BACKING__</code> · <a href="https://rh-scan.com/address/__VAULT__">rh-scan</a> · <a href="/">live status</a></div>
+</div><script>
+const VAULT="__VAULT__", SPONS="__SPONS__", LPONS="__LPONS__", COIN="__COIN__", BACKING="__BACKING__", CHAIN="0x1237", RPC="https://rpc.mainnet.chain.robinhood.com";
+const pad=x=>BigInt(x).toString(16).padStart(64,"0"); const big=h=>BigInt(h); const eth=w=>Number(w)/1e18; const MAX=2n**256n-1n;
+const wei=s=>BigInt(Math.round(parseFloat(s||"0")*1e6))*BigInt(1e12);
+let acct=null, cache={};
+const $=id=>document.getElementById(id);
+const log=s=>{$('log').textContent=`[${new Date().toLocaleTimeString()}] `+s+"\n"+$('log').textContent};
+async function rpc(method,params){const r=await fetch(RPC,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})});const j=await r.json();if(j.error)throw new Error(j.error.message);return j.result}
+const call=(to,data)=>rpc('eth_call',[{to,data},'latest']);
+const tx=(to,data,value)=>window.ethereum.request({method:'eth_sendTransaction',params:[{from:acct,to,data,...(value?{value:'0x'+value.toString(16)}:{})}]});
+async function stats(){
+  const [L,S,navL,navS,sb,fl,sup]=await Promise.all([call(VAULT,'0xf1e2dbbf'),call(VAULT,'0xa3af9574'),call(VAULT,'0x6b6dfd3c'+pad(0)),call(VAULT,'0x6b6dfd3c'+pad(1)),call(BACKING,'0x48f84dc5'),call(BACKING,'0xd438686f'),call(COIN,'0x18160ddd')]);
+  const l=eth(big(L)),s=eth(big(S)); cache={navL:eth(big(navL)),navS:eth(big(navS)),floor:eth(big(fl))};
+  $('levL').textContent=`+${(l>0?s/l:0).toFixed(1)}%`; $('levS').textContent=`+${(s>0?l/s:0).toFixed(2)}%`;
+  $('stats').innerHTML=`<div><div class="k">long side</div><div class="v">${l.toFixed(3)} ETH</div></div><div><div class="k">short side</div><div class="v">${s.toFixed(3)} ETH</div></div>
+  <div><div class="k">lPONS NAV</div><div class="v">${cache.navL.toFixed(8)} ETH</div></div><div><div class="k">sPONS NAV</div><div class="v">${cache.navS.toFixed(8)} ETH</div></div>
+  <div><div class="k">sPONS in Backing</div><div class="v">${eth(big(sb)).toFixed(1)}</div></div><div><div class="k">floor per __SYM__</div><div class="v">${cache.floor.toExponential(3)} ETH</div></div>
+  <div><div class="k">__SYM__ supply</div><div class="v">${(eth(big(sup))/1e6).toFixed(1)}M</div></div>`;
+}
+async function mine(){
+  if(!acct)return;const a='0x70a08231'+pad(acct);
+  const [bl,bs,bc]=await Promise.all([call(LPONS,a),call(SPONS,a),call(COIN,a)]);
+  const L=eth(big(bl)),S=eth(big(bs)),C=eth(big(bc));
+  $('mine').innerHTML=`<div><div class="k">your lPONS</div><div class="v">${L.toFixed(2)} <span class="k">≈ ${(L*cache.navL).toFixed(4)} ETH</span></div></div>
+  <div><div class="k">your sPONS</div><div class="v">${S.toFixed(2)} <span class="k">≈ ${(S*cache.navS).toFixed(4)} ETH</span></div></div>
+  <div><div class="k">your __SYM__</div><div class="v">${C.toLocaleString(undefined,{maximumFractionDigits:0})} <span class="k">redeems for ≈ ${(C*cache.floor/cache.navS).toFixed(2)} sPONS</span></div></div>`;
+  // never pre-fill burn/redeem amounts with the full balance — the user types what they want to burn
+  $('rdv').textContent=`≈ ${(parseFloat($('rd').value||0)*cache.floor/cache.navS).toFixed(3)} sPONS (${(parseFloat($('rd').value||0)*cache.floor).toFixed(5)} ETH at NAV) · you hold ${C.toLocaleString(undefined,{maximumFractionDigits:0})}`;
+}
+async function connect(){
+  if(!window.ethereum){log('no wallet found — open in a browser with MetaMask / Rabby / OKX');return}
+  acct=(await window.ethereum.request({method:'eth_requestAccounts'}))[0];
+  try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN}]})}
+  catch(e){if(e.code===4902){await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN,chainName:'Robinhood Chain',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:['https://rh-scan.com']}]})}else throw e}
+  $('who').textContent=acct;['mL','mS','bbL','bbS','cl','rdb'].forEach(i=>$(i).disabled=false);log('connected '+acct);await stats();await mine();pending();
+}
+async function ensureAllowance(token,amount){
+  const al=big(await call(token,'0xdd62ed3e'+pad(acct)+pad(VAULT)));
+  if(al<amount){const h=await tx(token,'0x095ea7b3'+pad(VAULT)+pad(MAX));log('approve sent '+h+' — wait for it to confirm, then press burn again');return false}
+  return true;
+}
+async function mint(side){const v=wei($(side?'amtS':'amtL').value);if(v<=0n)return log('enter an amount');const h=await tx(VAULT,'0x4f60dbaf'+pad(side),v);log(`commit ${side?'SHORT':'LONG'} ${eth(v)} ETH sent ${h} — claim in ~2–3 min`)}
+async function burn(side){const sh=wei($(side?'bS':'bL').value);if(sh<=0n)return log('enter an amount');
+  if(!confirm(`Burn ${eth(sh)} ${side?'sPONS':'lPONS'} back to ETH at NAV (claim in ~2–3 min)?`))return log('burn cancelled');
+  if(!(await ensureAllowance(side?SPONS:LPONS,sh)))return;
+  const h=await tx(VAULT,'0xc3054d94'+pad(side)+pad(sh));log(`burn ${side?'sPONS':'lPONS'} ${eth(sh)} committed ${h} — claim ETH in ~2–3 min`)}
+async function redeem(){const a=wei($('rd').value);if(a<=0n)return log('enter an amount');
+  if(!confirm(`This BURNS ${eth(a).toLocaleString()} __SYM__ permanently and pays ≈ ${(eth(a)*cache.floor/cache.navS).toFixed(3)} sPONS (${(eth(a)*cache.floor).toFixed(5)} ETH at NAV). Continue?`))return log('redeem cancelled');
+  const h=await tx(COIN,'0xdb006a75'+pad(a));log(`redeem ${eth(a)} __SYM__ sent ${h} — sPONS arrives when it confirms`)}
+async function pending(){
+  if(!acct)return;const n=Number(big(await call(VAULT,'0x9123988b')));const list=[];
+  for(let i=Math.max(0,n-80);i<n;i++){const c=await call(VAULT,'0xc7c4a615'+pad(i));const user='0x'+c.slice(26,66);const claimed=big('0x'+c.slice(2+64*3,2+64*4))!==0n;
+    if(user.toLowerCase()===acct.toLowerCase()&&!claimed){const e=await call(VAULT,'0x074bb1ec'+pad(i));list.push({i,e,ready:big(e)!==MAX})}}
+  $('pend').textContent=list.length?`${list.length} pending, ${list.filter(x=>x.ready).length} ready`:'no pending commits';return list;
+}
+async function claim(){const list=(await pending())||[];let did=0;for(const m of list.filter(x=>x.ready)){const h=await tx(VAULT,'0xc3490263'+pad(m.i)+m.e.slice(2));log('claim sent '+h);did++}if(!did)log('nothing ready yet — wait for the next rebalance after your 2-minute window')}
+const guard=f=>()=>f().catch(e=>log('error: '+(e.message||e)));
+$('c').onclick=guard(connect);$('mL').onclick=guard(()=>mint(0));$('mS').onclick=guard(()=>mint(1));$('bbL').onclick=guard(()=>burn(0));$('bbS').onclick=guard(()=>burn(1));$('cl').onclick=guard(claim);$('rdb').onclick=guard(redeem);
+$('rd').oninput=()=>{$('rdv').textContent=`≈ ${(parseFloat($('rd').value||0)*cache.floor/cache.navS).toFixed(3)} sPONS`};
+stats();setInterval(()=>{stats();mine();pending()},20000);
+</script></body></html>

@@ -1,0 +1,82 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__SYM__ — the machine, live</title>
+<style>
+body{margin:0;background:#0b0f14;color:#e6edf3;font:14px -apple-system,Inter,system-ui,sans-serif}.wrap{max-width:1240px;margin:0 auto;padding:18px}
+h1{font-size:22px;margin:0 0 4px}.sub{color:#8b949e;margin-bottom:12px;line-height:1.4}
+.top{display:grid;grid-template-columns:2fr 1fr;gap:14px}@media(max-width:900px){.top{grid-template-columns:1fr}}
+.card{background:#111823;border:1px solid #1f2a37;border-radius:12px;padding:12px}
+svg{width:100%;height:auto;display:block}
+.node{fill:#0f1620;stroke:#2b3a4d;stroke-width:1.2}.node.hot{stroke:#3ddc84;stroke-width:2}.lbl{fill:#e6edf3;font-size:13px;font-weight:600}.sm{fill:#8b949e;font-size:11px}.big{fill:#fff;font-size:17px;font-weight:700}
+.edge{stroke:#2b3a4d;stroke-width:1.5;fill:none}.g{fill:#3ddc84}.r{fill:#ff5c5c}.o{fill:#ffb347}.b{fill:#58a6ff}.p{fill:#c792ea}
+.feed{max-height:560px;overflow:auto;font-size:12.5px}.ev{padding:7px 8px;border-bottom:1px solid #1f2a37;display:flex;gap:8px;align-items:flex-start}.ev .t{color:#8b949e;min-width:58px;font-variant-numeric:tabular-nums}.ev a{color:#58a6ff;text-decoration:none;margin-left:auto}
+.ev.buy{border-left:3px solid #3ddc84}.ev.sell{border-left:3px solid #ff5c5c}.ev.harvest{border-left:3px solid #ffb347}.ev.rebalance{border-left:3px solid #58a6ff}.ev.burn{border-left:3px solid #ff8c42}.ev.redeem,.ev.donate{border-left:3px solid #c792ea}.ev.spons_buy,.ev.spons_sell,.ev.backing_claim,.ev.commit{border-left:3px solid #8b949e}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}.tile{background:#0f1620;border:1px solid #1f2a37;border-radius:10px;padding:10px}.tile .k{color:#8b949e;font-size:11px}.tile .v{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+.flash{animation:fl .9s ease-out}@keyframes fl{0%{background:#1d3b2a}100%{background:#0f1620}}
+.foot{color:#8b949e;font-size:11.5px;margin-top:10px}.foot a{color:#58a6ff}code{color:#c9d1d9}
+</style></head><body><div class="wrap">
+<h1>__SYM__ — the machine, live</h1>
+<div class="sub">Every dot is a real transaction on Robinhood Chain, animated as it happens. A buy pays a 3% fee in ETH → the Backing contract turns it into sPONS (a tokenized PONS short) → the floor under every __SYM__ rises. A sell pays its 3% in __SYM__ → burned. The vault re-prices the short against PONS every minute. Nobody is in the middle.</div>
+<div class="top">
+<div class="card">
+<svg viewBox="0 0 900 470" id="svg">
+ <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#2b3a4d"/></marker></defs>
+ <!-- edges -->
+ <path id="e_trader_pool" class="edge" d="M120,120 L215,120" marker-end="url(#ar)"/>
+ <path id="e_pool_backing" class="edge" d="M360,120 L455,120" marker-end="url(#ar)"/>
+ <path id="e_pool_burn" class="edge" d="M290,150 L290,238" marker-end="url(#ar)"/>
+ <path id="e_backing_market" class="edge" d="M600,100 L690,60" marker-end="url(#ar)"/>
+ <path id="e_backing_vault" class="edge" d="M600,140 L690,300" marker-end="url(#ar)"/>
+ <path id="e_market_backing" class="edge" d="M690,80 L600,120" marker-end="url(#ar)"/>
+ <path id="e_vault_backing" class="edge" d="M690,320 L600,150" marker-end="url(#ar)"/>
+ <path id="e_backing_holders" class="edge" d="M527,160 L527,238" marker-end="url(#ar)"/>
+ <path id="e_peg" class="edge" d="M790,110 L790,268" marker-end="url(#ar)"/>
+ <!-- nodes -->
+ <g id="n_trader"><rect class="node" x="20" y="90" width="100" height="60" rx="10"/><text class="lbl" x="70" y="115" text-anchor="middle">Traders</text><text class="sm" x="70" y="133" text-anchor="middle">buy / sell</text></g>
+ <g id="n_pool"><rect class="node" x="215" y="80" width="145" height="70" rx="10"/><text class="lbl" x="287" y="104" text-anchor="middle">__SYM__ pool</text><text class="sm" x="287" y="121" text-anchor="middle">locked LP · 3% fee</text><text class="sm" x="287" y="138" text-anchor="middle" id="t_price">price …</text></g>
+ <g id="n_burn"><rect class="node" x="225" y="238" width="125" height="58" rx="10"/><text class="lbl" x="287" y="260" text-anchor="middle">🔥 Burn</text><text class="big" x="287" y="284" text-anchor="middle" id="t_burned">…</text></g>
+ <g id="n_backing"><rect class="node" x="455" y="70" width="145" height="90" rx="10"/><text class="lbl" x="527" y="92" text-anchor="middle">Backing</text><text class="sm" x="527" y="108" text-anchor="middle">holds the short</text><text class="big" x="527" y="130" text-anchor="middle" id="t_backing">…</text><text class="sm" x="527" y="150" text-anchor="middle" id="t_fees">…</text></g>
+ <g id="n_holders"><rect class="node" x="455" y="238" width="145" height="58" rx="10"/><text class="lbl" x="527" y="260" text-anchor="middle">Holders</text><text class="sm" x="527" y="278" text-anchor="middle" id="t_floor">redeem any time</text></g>
+ <g id="n_market"><rect class="node" x="690" y="30" width="190" height="80" rx="10"/><text class="lbl" x="785" y="52" text-anchor="middle">sPONS market</text><text class="sm" x="785" y="69" text-anchor="middle">instant buy if ≤ NAV+3%</text><text class="sm" x="785" y="86" text-anchor="middle" id="t_peg">peg keeper holds it at NAV</text><text class="sm" x="785" y="102" text-anchor="middle" id="t_mkt">…</text></g>
+ <g id="n_vault"><rect class="node" x="690" y="268" width="190" height="170" rx="10"/><text class="lbl" x="785" y="290" text-anchor="middle">Vault — PONS short</text><text class="sm" x="785" y="306" text-anchor="middle" id="t_pons">PONS …</text>
+  <text class="sm" x="705" y="332">LONG</text><rect x="745" y="322" width="0" height="12" rx="3" class="r" id="bar_long"/><text class="sm" x="870" y="332" text-anchor="end" id="t_long">…</text>
+  <text class="sm" x="705" y="352">SHORT</text><rect x="745" y="342" width="0" height="12" rx="3" class="g" id="bar_short"/><text class="sm" x="870" y="352" text-anchor="end" id="t_short">…</text>
+  <text class="sm" x="785" y="378" text-anchor="middle" id="t_nav">sPONS NAV …</text><text class="sm" x="785" y="396" text-anchor="middle" id="t_epochs">rebalances …</text><text class="sm" x="785" y="414" text-anchor="middle">losing side pays winning side every minute</text><text class="sm" x="785" y="430" text-anchor="middle">owner 0x0 · no liquidation</text></g>
+ <text class="sm" x="640" y="205" text-anchor="middle">fallback: mint at NAV (2-min window)</text>
+ <text class="sm" x="410" y="105" text-anchor="middle">ETH fee</text><text class="sm" x="312" y="200" text-anchor="start">__SYM__ fee</text>
+ <g id="dots"></g>
+</svg>
+<div class="tiles" id="tiles"></div>
+</div>
+<div class="card"><div class="lbl" style="font-size:14px;font-weight:600;margin-bottom:6px">Live feed <span id="cnt" style="color:#8b949e;font-weight:400"></span></div><div class="feed" id="feed"></div></div>
+</div>
+<div class="foot">__SYM__ <code>__COIN__</code> · Backing <code>__BACKING__</code> · Vault <code>__VAULT__</code> · sPONS <code>__SPONS__</code> · <a href="/">status charts</a> · <a href="/vault">vault: go long / short / redeem</a> · <a href="https://rh-scan.com/address/__VAULT__">rh-scan</a></div>
+</div><script>
+const $=id=>document.getElementById(id);
+const P=id=>{const e=$(id);const L=e.getTotalLength();return t=>e.getPointAtLength(t*L)};
+const paths={};['e_trader_pool','e_pool_backing','e_pool_burn','e_backing_market','e_backing_vault','e_market_backing','e_vault_backing','e_backing_holders','e_peg'].forEach(k=>paths[k]=P(k));
+const route={buy:[['e_trader_pool','g'],['e_pool_backing','o']],sell:[['e_trader_pool','r'],['e_pool_burn','r']],harvest:null,burn:[['e_pool_burn','r']],
+  backing_claim:[['e_vault_backing','g']],redeem:[['e_backing_holders','p']],donate:[['e_backing_holders','p']],rebalance:null,spons_buy:[['e_backing_market','o'],['e_market_backing','g']],spons_sell:[['e_peg','b']],commit:[['e_backing_vault','b']]};
+function dot(path,cls,delay){setTimeout(()=>{const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('r',5);c.setAttribute('class',cls);$('dots').appendChild(c);const f=paths[path];const t0=performance.now();const dur=900;
+  (function step(now){const t=Math.min(1,(now-t0)/dur);const p=f(t);c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);if(t<1)requestAnimationFrame(step);else c.remove()})(t0)},delay)}
+function hot(id){const n=$(id).querySelector('rect');n.classList.add('hot');setTimeout(()=>n.classList.remove('hot'),900)}
+function animate(ev,i){const d=i*350;const r=route[ev.kind];
+  if(ev.kind==='harvest'){hot('n_backing');if(ev.spons>0){dot('e_backing_market','o',d);dot('e_market_backing','g',d+900)}if(ev.eth_vault>0)dot('e_backing_vault','o',d);if(ev.burned>0)dot('e_pool_burn','r',d);return}
+  if(ev.kind==='rebalance'){setTimeout(()=>hot('n_vault'),d);return}
+  if(!r)return;r.forEach((e,j)=>dot(e[0],e[1],d+j*900));setTimeout(()=>hot({buy:'n_pool',sell:'n_pool',burn:'n_burn',redeem:'n_holders',donate:'n_backing',backing_claim:'n_backing',spons_buy:'n_market',spons_sell:'n_market',commit:'n_vault'}[ev.kind]),d)}
+let seen=new Set(),first=true;
+async function feed(){const evs=await (await fetch('/events')).json();const fresh=evs.filter(e=>!seen.has(e.tx+e.kind+e.t+(e.msg||'')));fresh.forEach(e=>seen.add(e.tx+e.kind+e.t+(e.msg||'')));
+  if(fresh.length){const list=first?fresh.slice(-25):fresh;list.forEach((e,i)=>animate(e,i));first=false;
+    const html=evs.slice().reverse().slice(0,120).map(e=>`<div class="ev ${e.kind}"><span class="t">${new Date(e.t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span><span>${e.msg}</span><a href="https://rh-scan.com/tx/${e.tx}" target="_blank">tx</a></div>`).join('');
+    $('feed').innerHTML=html;$('cnt').textContent=`· ${evs.length} recent on-chain events`}}
+let last={};
+async function stats(){const m=await (await fetch('/metrics')).json();const h=await (await fetch('/data')).json();const n=h[h.length-1]||{};
+  const L=n.long_bal||0,S=n.short_bal||0,mx=Math.max(L,S,1e-9);
+  $('bar_long').setAttribute('width',110*L/mx);$('bar_short').setAttribute('width',110*S/mx);$('t_long').textContent=L.toFixed(3)+' ETH';$('t_short').textContent=S.toFixed(3)+' ETH';
+  $('t_pons').textContent=`PONS ${(m.ponsPriceEth||0).toFixed(8)} ETH`;$('t_nav').textContent=`sPONS NAV ${(m.shortNavEth||0).toFixed(8)} · lPONS ${(m.longNavEth||0).toFixed(8)}`;$('t_epochs').textContent=`rebalances: ${n.epochs||'…'}`;
+  $('t_backing').textContent=`${(m.sponsBacking||0).toFixed(1)} sPONS`;$('t_fees').textContent=`${(m.feesToShortEth||0).toFixed(3)} ETH of fees → short`;
+  $('t_burned').textContent=`${((m.burned||0)/1e6).toFixed(2)}M`;$('t_floor').textContent=`floor ${(m.backingPerPunzEth||0).toExponential(2)} ETH / __SYM__`;
+  $('t_price').textContent=`price ${(m.marketPriceEth||0).toExponential(2)} ETH`;
+  const backed=m.marketPriceEth?100*m.backingPerPunzEth/m.marketPriceEth:0;
+  const tiles=[['fees → short (ETH)',(m.feesToShortEth||0).toFixed(3)],['sPONS in Backing',(m.sponsBacking||0).toFixed(1)],['__SYM__ burned',((m.burned||0)/1e6).toFixed(2)+'M'],['floor / price',backed.toFixed(2)+'%'],['PONS since launch',h.length?((n.pons/h[0].pons-1)*100).toFixed(2)+'%':'…'],['sPONS NAV since launch',h.length?((n.nav_s/h[0].nav_s-1)*100).toFixed(2)+'%':'…']];
+  $('tiles').innerHTML=tiles.map(t=>`<div class="tile ${last[t[0]]!==undefined&&last[t[0]]!==t[1]?'flash':''}"><div class="k">${t[0]}</div><div class="v">${t[1]}</div></div>`).join('');tiles.forEach(t=>last[t[0]]=t[1])}
+stats();feed();setInterval(stats,10000);setInterval(feed,6000);
+</script></body></html>
