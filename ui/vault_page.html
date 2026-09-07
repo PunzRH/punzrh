@@ -105,6 +105,7 @@ async function ffWithdraw(){const s=wei($('ffW').value);if(s<=0n)return log('ent
   if(!confirm(`Withdraw ${eth(s)} shares of principal (ETH + __SYM__ at the current pool mix)?`))return log('withdraw cancelled');
   const h=await tx(FF,'0x2e1a7d4d'+pad(s));log('withdraw sent '+h)}
 $('ffA').onclick=()=>ffApprove().catch(e=>log('error: '+(e.message||e)));$('ffAdd').onclick=()=>ffAdd().catch(e=>log('error: '+(e.message||e)));$('ffWd').onclick=()=>ffWithdraw().catch(e=>log('error: '+(e.message||e)));
+try{const q=new URLSearchParams(location.search);if(q.get('eth'))$('ffE').value=q.get('eth');if(q.get('punz'))$('ffP').value=q.get('punz');if(q.get('eth')||q.get('punz'))document.querySelector('#ffAdd').closest('.card').scrollIntoView()}catch(e){}
 ffStats();setInterval(()=>{ffStats();ffMine()},20000);
 async function ensureAllowance(token,amount){
   const al=big(await call(token,'0xdd62ed3e'+pad(acct)+pad(VAULT)));
