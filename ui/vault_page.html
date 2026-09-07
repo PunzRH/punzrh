@@ -38,10 +38,16 @@ Go long = <code>commitMint(0)</code> with ETH, then <code>claim(id, claimableEpo
 <div class="card"><h2>Redeem __SYM__ for its share of the short</h2><div class="k">Burns your __SYM__ and pays your pro-rata sPONS out of the Backing contract. Instant, no waiting. This is the floor.</div>
 <div class="row"><input id="rd" value="0"> __SYM__ <button id="rdb" class="red" disabled>Redeem</button><span id="rdv" class="k"></span></div></div>
 
+<div class="card" style="border-color:#3a4a7a"><h2 style="color:#8fb3ff">Feed the Lighter short (v2) — keep your capital</h2>
+<div class="k">Add ETH + __SYM__ as liquidity in the __SYM__/ETH pool through the FeeFeeder2 contract. You get shares and can withdraw your principal any time. You earn nothing from it: every fee the position collects is sent to LighterBacking (→ USDG → PONS short on Robinhood Lighter) and the __SYM__ side is burned. Best ratio ≈ equal value of ETH and __SYM__; leftovers are refunded in the same tx.</div>
+<div class="row"><input id="ffE" value="0"> ETH + <input id="ffP" value="0"> __SYM__ <button id="ffA" disabled>Approve __SYM__</button><button id="ffAdd" disabled>Add</button></div>
+<div class="row"><input id="ffW" value="0"> shares <button id="ffWd" class="red" disabled>Withdraw principal</button><span id="ffMine" class="k"></span></div>
+<div class="grid" id="ffStats" style="margin-top:10px"></div></div>
+
 <div class="log" id="log"></div>
-<div class="k" style="margin-top:14px">Vault <code>__VAULT__</code> · sPONS <code>__SPONS__</code> · lPONS <code>__LPONS__</code> · __SYM__ <code>__COIN__</code> · Backing <code>__BACKING__</code> · <a href="https://rh-scan.com/address/__VAULT__">rh-scan</a> · <a href="/">live status</a></div>
+<div class="k" style="margin-top:14px">Vault <code>__VAULT__</code> · sPONS <code>__SPONS__</code> · lPONS <code>__LPONS__</code> · __SYM__ <code>__COIN__</code> · Backing <code>__BACKING__</code> · FeeFeeder2 <code>__FEEFEEDER__</code> · LighterBacking <code>__LIGHTERBACKING__</code> · <a href="https://rh-scan.com/address/__VAULT__">rh-scan</a> · <a href="/">live status</a></div>
 </div><script>
-const VAULT="__VAULT__", SPONS="__SPONS__", LPONS="__LPONS__", COIN="__COIN__", BACKING="__BACKING__", CHAIN="0x1237", RPC="https://rpc.mainnet.chain.robinhood.com";
+const VAULT="__VAULT__", SPONS="__SPONS__", LPONS="__LPONS__", COIN="__COIN__", BACKING="__BACKING__", FF="__FEEFEEDER__", LB="__LIGHTERBACKING__", CHAIN="0x1237", RPC="https://rpc.mainnet.chain.robinhood.com";
 const pad=x=>BigInt(x).toString(16).padStart(64,"0"); const big=h=>BigInt(h); const eth=w=>Number(w)/1e18; const MAX=2n**256n-1n;
 const wei=s=>BigInt(Math.round(parseFloat(s||"0")*1e6))*BigInt(1e12);
 let acct=null, cache={};
@@ -74,8 +80,32 @@ async function connect(){
   acct=(await window.ethereum.request({method:'eth_requestAccounts'}))[0];
   try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN}]})}
   catch(e){if(e.code===4902){await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN,chainName:'Robinhood Chain',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:['https://rh-scan.com']}]})}else throw e}
-  $('who').textContent=acct;['mL','mS','bbL','bbS','cl','rdb'].forEach(i=>$(i).disabled=false);log('connected '+acct);await stats();await mine();pending();
+  $('who').textContent=acct;['mL','mS','bbL','bbS','cl','rdb','ffA','ffAdd','ffWd'].forEach(i=>$(i).disabled=false);log('connected '+acct);await stats();await mine();pending();ffMine();
 }
+// ---- FeeFeeder2 (principal-preserving; fees → Lighter short, PUNZ burned)
+async function ffStats(){
+  if(!FF||FF.startsWith('__'))return;
+  const [liq,fed,burned,ts]=await Promise.all([call(FF,'0x1a686502'),call(FF,'0xdc937817'),call(FF,'0xfbddbf94'),call(FF,'0x3a98ef39')]);
+  $('ffStats').innerHTML=`<div><div class="k">liquidity</div><div class="v">${big(liq)>0n?'active':'empty'}</div></div><div><div class="k">ETH fed to short</div><div class="v">${eth(big(fed)).toFixed(5)}</div></div>
+  <div><div class="k">__SYM__ burned</div><div class="v">${(eth(big(burned))/1e3).toFixed(1)}K</div></div><div><div class="k">total shares</div><div class="v">${(Number(big(ts))/1e18).toFixed(4)}</div></div>`;
+}
+async function ffMine(){
+  if(!acct||!FF||FF.startsWith('__'))return;
+  const [sh,pr]=await Promise.all([call(FF,'0xce7c2ac2'+pad(acct)),call(FF,'0x61e20a1c'+pad(acct))]);
+  const e=eth(big('0x'+pr.slice(2,66))),p=eth(big('0x'+pr.slice(66,130)));
+  $('ffMine').textContent=`your shares ${(Number(big(sh))/1e18).toFixed(4)} ≈ ${e.toFixed(4)} ETH + ${p.toLocaleString(undefined,{maximumFractionDigits:0})} __SYM__ withdrawable`;
+  $('ffMine').dataset.sh=big(sh).toString();
+}
+async function ffApprove(){const h=await tx(COIN,'0x095ea7b3'+pad(FF)+pad(MAX));log('approve __SYM__ for FeeFeeder2 sent '+h)}
+async function ffAdd(){const v=wei($('ffE').value),p=wei($('ffP').value);if(v<=0n&&p<=0n)return log('enter ETH and/or __SYM__');
+  if(p>0n){const al=big(await call(COIN,'0xdd62ed3e'+pad(acct)+pad(FF)));if(al<p)return log('approve __SYM__ first (button on the left), wait for it to confirm, then Add')}
+  if(!confirm(`Add ${eth(v)} ETH + ${eth(p).toLocaleString()} __SYM__ as fee-feeding liquidity? Your principal stays withdrawable; all fees go to the Lighter short / burn. Unused amounts are refunded in the same tx.`))return log('add cancelled');
+  const h=await tx(FF,'0x1003e2d2'+pad(p),v);log('add sent '+h)}
+async function ffWithdraw(){const s=wei($('ffW').value);if(s<=0n)return log('enter shares');
+  if(!confirm(`Withdraw ${eth(s)} shares of principal (ETH + __SYM__ at the current pool mix)?`))return log('withdraw cancelled');
+  const h=await tx(FF,'0x2e1a7d4d'+pad(s));log('withdraw sent '+h)}
+$('ffA').onclick=()=>ffApprove().catch(e=>log('error: '+(e.message||e)));$('ffAdd').onclick=()=>ffAdd().catch(e=>log('error: '+(e.message||e)));$('ffWd').onclick=()=>ffWithdraw().catch(e=>log('error: '+(e.message||e)));
+ffStats();setInterval(()=>{ffStats();ffMine()},20000);
 async function ensureAllowance(token,amount){
   const al=big(await call(token,'0xdd62ed3e'+pad(acct)+pad(VAULT)));
   if(al<amount){const h=await tx(token,'0x095ea7b3'+pad(VAULT)+pad(MAX));log('approve sent '+h+' — wait for it to confirm, then press burn again');return false}

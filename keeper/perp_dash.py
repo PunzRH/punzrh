@@ -73,7 +73,9 @@ def snapshot():
             try:
                 if "LB" not in globals():
                     globals()["LB"] = w3.eth.contract(address=Web3.to_checksum_address(DEP["lighterBacking"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "LighterBacking.sol", "LighterBacking.json")))["abi"])
-                    globals()["FF"] = w3.eth.contract(address=Web3.to_checksum_address(DEP["feeFeeder"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "FeeFeeder.sol", "FeeFeeder.json")))["abi"]) if DEP.get("feeFeeder") else None
+                    _k = DEP.get("feeFeeder_kind", "FeeFeeder")
+                    globals()["FF"] = w3.eth.contract(address=Web3.to_checksum_address(DEP["feeFeeder"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", f"{_k}.sol", f"{_k}.json")))["abi"]) if DEP.get("feeFeeder") else None
+                    globals()["FFL"] = w3.eth.contract(address=Web3.to_checksum_address(DEP["feeFeeder_locked"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "FeeFeeder.sol", "FeeFeeder.json")))["abi"]) if DEP.get("feeFeeder_locked") else None
                 s["v2_collateral_usdg"] = LB.functions.collateralUnits().call() / 1e6
                 s["v2_short_pons"] = LB.functions.baseTicks().call() / 10 ** DEP["lighter"]["sizeDecimals"]
                 s["v2_equity_usdg"] = LB.functions.equityUnits().call() / 1e6
@@ -81,6 +83,10 @@ def snapshot():
                 s["v2_floor_usdg_per_punz"] = (s["v2_equity_usdg"] / _sup) if _sup else 0.0   # USDG per 1 PUNZ (contract view truncates to 0 at this size)
                 s["v2_eth_waiting"] = w3.eth.get_balance(LB.address) / 1e18
                 if FF: s["ff_liquidity"] = FF.functions.liquidity().call(); s["ff_eth_fed"] = FF.functions.totalEthFed().call() / 1e18; s["ff_punz_burned"] = FF.functions.totalPunzBurned().call() / 1e18; s["ff_in_range"] = FF.functions.inRange().call()
+                if FF and DEP.get("feeFeeder_kind") == "FeeFeeder2": s["ff_total_shares"] = FF.functions.totalShares().call() / 1e18
+                if FFL:   # original locked feeder: add its totals so "fed to short" is the full picture
+                    s["ff_locked_eth_fed"] = FFL.functions.totalEthFed().call() / 1e18; s["ff_locked_punz_burned"] = FFL.functions.totalPunzBurned().call() / 1e18
+                    s["ff_eth_fed"] = s.get("ff_eth_fed", 0) + s["ff_locked_eth_fed"]; s["ff_punz_burned"] = s.get("ff_punz_burned", 0) + s["ff_locked_punz_burned"]
                 # live view of the position from the Robinhood Lighter API (display only; the contract never depends on it)
                 import urllib.request as _u
                 acct = LB.functions.accountIndex().call()
@@ -289,7 +295,7 @@ class H(BaseHTTPRequestHandler):
                                "vaultOwner": "0x0000000000000000000000000000000000000000", "source": "chain via keeper host, 30s poll", "ethUsd": n.get("eth_usd"), "totalSupply": n.get("supply"),
                                # Backing v2 (real PONS short on Robinhood Lighter) — present once deployed
                                **{k: n.get(k) for k in ("v2_collateral_usdg", "v2_short_pons", "v2_equity_usdg", "v2_floor_usdg_per_punz", "v2_eth_waiting",
-                                                        "ff_eth_fed", "ff_punz_burned", "ff_in_range", "lighter_account", "lighter_collateral",
+                                                        "ff_eth_fed", "ff_punz_burned", "ff_in_range", "ff_total_shares", "ff_locked_eth_fed", "lighter_account", "lighter_collateral",
                                                         "lighter_position_pons", "lighter_entry", "lighter_upnl", "lighter_liq") if k in n}}).encode()
             ct = "application/json"
             self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Access-Control-Allow-Origin", "*")
@@ -402,7 +408,8 @@ HOW_PAGE = (HOW_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).
 LIVE_PAGE = (LIVE_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__LPONS__", DEP.get("longToken_lPONS", ""))
              .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", "")))
 LONG_PAGE = (LONG_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__LPONS__", DEP.get("longToken_lPONS", ""))
-             .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", "")))
+             .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", ""))
+             .replace("__LIGHTERBACKING__", DEP.get("lighterBacking", "")).replace("__FEEFEEDER__", DEP.get("feeFeeder", "")))
 
 if __name__ == "__main__":
     if os.path.exists(HIST):

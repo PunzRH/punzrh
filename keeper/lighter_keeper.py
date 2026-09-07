@@ -21,7 +21,11 @@ class LighterKeeper:
         self.w3, self.send, self.log, self.dep = w3, send, log, dep
         o = os.path.join(HOME, "pons-perp", "out")
         self.lb = w3.eth.contract(address=Web3.to_checksum_address(dep["lighterBacking"]), abi=json.load(open(os.path.join(o, "LighterBacking.sol", "LighterBacking.json")))["abi"])
-        self.ff = w3.eth.contract(address=Web3.to_checksum_address(dep["feeFeeder"]), abi=json.load(open(os.path.join(o, "FeeFeeder.sol", "FeeFeeder.json")))["abi"]) if dep.get("feeFeeder") else None
+        # feeders to harvest: "feeFeeder" (FeeFeeder2, principal-preserving) + "feeFeeder_locked" (original locked FeeFeeder)
+        self.ffs = []
+        for key, sol in (("feeFeeder", dep.get("feeFeeder_kind", "FeeFeeder")), ("feeFeeder_locked", "FeeFeeder")):
+            if dep.get(key):
+                self.ffs.append(w3.eth.contract(address=Web3.to_checksum_address(dep[key]), abi=json.load(open(os.path.join(o, f"{sol}.sol", f"{sol}.json")))["abi"]))
         self.market = int(dep["lighter"]["ponsMarket"]); self.sd = int(dep["lighter"]["sizeDecimals"]); self.pd = int(dep["lighter"]["priceDecimals"])
         self.key_priv = os.environ.get("LIGHTER_API_PRIV"); self.key_slot = int(os.environ.get("LIGHTER_API_KEY_INDEX", "4"))
         self.last_harvest = 0; self.last_sync = (None, None)
@@ -45,14 +49,15 @@ class LighterKeeper:
     def step(self):
         acted = []
         # 1. LP fees → v2
-        if self.ff and time.time() - self.last_harvest > float(os.environ.get("V2_HARVEST_SECS", "300")):
+        if self.ffs and time.time() - self.last_harvest > float(os.environ.get("V2_HARVEST_SECS", "300")):
             self.last_harvest = time.time()
-            try:
-                if self.ff.functions.liquidity().call() > 0:
-                    if not self.ff.functions.inRange().call() and time.time() > self.ff.functions.lastRecenter().call() + 1800:
-                        h, st = self.send(self.ff.functions.recenter()); acted.append(f"recenter {'OK' if st == 1 else 'REV'} {h[:10]}")
-                    h, st = self.send(self.ff.functions.harvest()); acted.append(f"harvest {'OK' if st == 1 else 'REV'} {h[:10]}")
-            except Exception as ex: acted.append(f"harvest skip: {str(ex)[:60]}")
+            for ff in self.ffs:
+                try:
+                    if ff.functions.liquidity().call() > 0:
+                        if not ff.functions.inRange().call() and time.time() > ff.functions.lastRecenter().call() + 1800:
+                            h, st = self.send(ff.functions.recenter()); acted.append(f"recenter {ff.address[:6]} {'OK' if st == 1 else 'REV'} {h[:10]}")
+                        h, st = self.send(ff.functions.harvest()); acted.append(f"harvest {ff.address[:6]} {'OK' if st == 1 else 'REV'} {h[:10]}")
+                except Exception as ex: acted.append(f"harvest {ff.address[:6]} skip: {str(ex)[:60]}")
         # 2. ETH → USDG → Lighter
         try:
             if self.w3.eth.get_balance(self.lb.address) >= Web3.to_wei(0.002, "ether"):

@@ -50,12 +50,13 @@ All functions are public. On Blockscout, open the contract → **Write contract*
 | Contract | Address |
 |---|---|
 | LighterBacking (v2) | `0x886AE5d94E5b85A0FA40bA766D1A4689F53d1d39` — Lighter account 23662 |
-| FeeFeeder (locked LP → v2) | `0x40f0e263f6C3E7079E1897941fc27490734c55E7` |
+| FeeFeeder2 (principal-preserving LP → v2) | `0x9B81c0577cCEBfef2920fd061539CDc6235377ef` |
+| FeeFeeder (original, locked LP → v2) | `0x40f0e263f6C3E7079E1897941fc27490734c55E7` |
 
 - **Custody is trustless:** all collateral sits in the contract's own Lighter account. Lighter's bridge only pays withdrawals to the account's L1 owner (the contract), and L2 transfers to other accounts require the owner's L1 private key, which does not exist.
 - **Opening needs a key:** Lighter's L1 `createOrder` is reduce-only, so the short is opened by a keeper holding a trading API key registered once on the account (`registerKey`). That key can trade and nothing else; worst case is bad trades, never theft.
 - **Exit is forced:** `redeem(punz)` burns PUNZ, L1-force-closes that share of the short (reduce-only IOC, no key needed) and withdraws that share of the estimated equity. USDG lands on the contract in ~1–7 min; `settle()` pays claims in order.
-- **Feed:** `FeeFeeder` is a locked liquidity position in the PUNZ/ETH pool anyone can add to and nobody can remove. Its ETH fees go to LighterBacking (→ USDG → the short), its PUNZ fees burn.
+- **Feed:** `FeeFeeder2` is a concentrated liquidity position in the PUNZ/ETH pool. Anyone can `add(punz)` with ETH and receives shares; `withdraw(shares)` returns that slice of the principal at any time. Depositors never receive the fees: on every harvest, add and withdraw the ETH fees go to LighterBacking (→ USDG → the short) and the PUNZ fees are burned. `recenter()` (anyone, 30-min cooldown) re-centres the range when price walks out of it. The original `FeeFeeder` (locked, no withdraw) still runs alongside it.
 - Rehearsal contracts (the $20 experiments): `src/LighterProbe.sol`, `src/LighterProbe2.sol`. Robinhood Lighter API: `https://api.rh.lighter.xyz`.
 
 ## Build & test

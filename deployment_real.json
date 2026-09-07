@@ -56,7 +56,7 @@
   },
   "vaultOwner": "renounced (fee locked at 0)",
   "lighterBacking": "0x886AE5d94E5b85A0FA40bA766D1A4689F53d1d39",
-  "feeFeeder": "0x40f0e263f6C3E7079E1897941fc27490734c55E7",
+  "feeFeeder": "0x9B81c0577cCEBfef2920fd061539CDc6235377ef",
   "lighter": {
     "bridge": "0x94bAB9693Ba2f6358507eFfcbd372b0660AFfF9d",
     "ponsMarket": 44,
@@ -77,5 +77,7 @@
     "note": "L1 createOrder is reduce-only; opening via registered trading key; custody trustless"
   },
   "lighterBacking_deprecated": "0x106CFa410Bdd7D68fFe29AA43BC80BFaca758af2",
-  "feeFeeder_deprecated": "0xC943Ea6b597849b3Fc25B653b677c737Fc88C99C"
+  "feeFeeder_deprecated": "0xC943Ea6b597849b3Fc25B653b677c737Fc88C99C",
+  "feeFeeder_locked": "0x40f0e263f6C3E7079E1897941fc27490734c55E7",
+  "feeFeeder_kind": "FeeFeeder2"
 }
