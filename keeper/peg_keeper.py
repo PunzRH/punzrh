@@ -100,9 +100,19 @@ class Peg:
                 need = L * (n - start) // Q96
                 amt = min(need * 10 ** 6 // (10 ** 6 - self.fee) + 1, bal_s)
                 if amt > Web3.to_wei(0.5, "ether"):
-                    min_out = amt * nav_wei // 10 ** 18 * 95 // 100   # we only sell above NAV
-                    h, st = self.sell_spons(amt, min_out)
-                    acted = f"SELL {amt/1e18:.2f} sPONS (need {need/1e18:.2f}) {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"
+                    # size back-off: if the pool can't fill the whole amount above 95% of NAV (thin pool, or price sitting above the
+                    # range so `need` overshoots), halve until the gas estimate passes. Estimates fail off-chain: no gas, no nonce.
+                    last_err = None
+                    for a in (amt, amt // 2, amt // 4, amt // 8):
+                        if a <= Web3.to_wei(0.5, "ether"): break
+                        min_out = a * nav_wei // 10 ** 18 * 95 // 100   # we only sell above NAV
+                        try:
+                            h, st = self.sell_spons(a, min_out)
+                            acted = f"SELL {a/1e18:.2f} sPONS (need {need/1e18:.2f}) {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"; break
+                        except Exception as ex:
+                            last_err = ex
+                            if "8b063d73" not in str(ex) and "TooLittle" not in str(ex): raise
+                    if acted is None and last_err is not None: acted = f"sell wanted ({need/1e18:.2f} sPONS) but pool too thin above 95% NAV even for {amt/8/1e18:.2f}"
                 elif bal_s <= Web3.to_wei(0.5, "ether"):
                     acted = "sell wanted, no sPONS inventory"
         elif ratio < 1 - BAND_BPS / 1e4:
@@ -112,9 +122,17 @@ class Peg:
                 need = L * Q96 * (start - n) // (start * n)
                 amt = min(need * 10 ** 6 // (10 ** 6 - self.fee) + 1, spend, SWAP_MAX_ETH)
                 if amt > Web3.to_wei(0.001, "ether"):
-                    min_out = amt * 10 ** 18 // nav_wei * 95 // 100
-                    h, st = self.buy_spons(amt, min_out)
-                    acted = f"BUY sPONS with {amt/1e18:.4f} ETH (need {need/1e18:.4f}) {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"
+                    last_err = None
+                    for a in (amt, amt // 2, amt // 4, amt // 8):
+                        if a <= Web3.to_wei(0.001, "ether"): break
+                        min_out = a * 10 ** 18 // nav_wei * 95 // 100
+                        try:
+                            h, st = self.buy_spons(a, min_out)
+                            acted = f"BUY sPONS with {a/1e18:.4f} ETH (need {need/1e18:.4f}) {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"; break
+                        except Exception as ex:
+                            last_err = ex
+                            if "8b063d73" not in str(ex) and "TooLittle" not in str(ex): raise
+                    if acted is None and last_err is not None: acted = f"buy wanted ({need/1e18:.4f} ETH) but pool too thin below 105% NAV"
                 else:
                     acted = "buy wanted, no spare ETH"
         # inventory refill: mint sPONS at NAV from the vault (claimed automatically by perp_keeper's auto-claim loop)

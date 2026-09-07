@@ -42,17 +42,22 @@ pool = w3.eth.contract(address=POOL, abi=ABI)
 def now(): return datetime.datetime.now().strftime("%H:%M:%S")
 
 def send(fn, value=0):
-    tx = fn.build_transaction({"from": acct.address, "value": value,
-                               "nonce": w3.eth.get_transaction_count(acct.address),
-                               "chainId": w3.eth.chain_id})
-    gp = w3.eth.gas_price
-    tx["maxFeePerGas"] = int(gp * 1.4); tx["maxPriorityFeePerGas"] = min(int(gp * 0.5) + 1, tx["maxFeePerGas"])
-    tx.pop("gasPrice", None)
-    tx["gas"] = int(w3.eth.estimate_gas(tx) * 1.3)
-    s = acct.sign_transaction(tx)
-    h = w3.eth.send_raw_transaction(s.raw_transaction)
-    rc = w3.eth.wait_for_transaction_receipt(h, timeout=120)
-    return h.hex(), rc.status
+    for attempt in range(2):
+        tx = fn.build_transaction({"from": acct.address, "value": value,
+                                   "nonce": w3.eth.get_transaction_count(acct.address, "pending"),
+                                   "chainId": w3.eth.chain_id})
+        gp = w3.eth.gas_price
+        tx["maxFeePerGas"] = int(gp * 1.4); tx["maxPriorityFeePerGas"] = min(int(gp * 0.5) + 1, tx["maxFeePerGas"])
+        tx.pop("gasPrice", None)
+        tx["gas"] = int(w3.eth.estimate_gas(tx) * 1.3)
+        s = acct.sign_transaction(tx)
+        try:
+            h = w3.eth.send_raw_transaction(s.raw_transaction)
+        except Exception as ex:
+            if attempt == 0 and "nonce" in str(ex).lower(): time.sleep(3); continue   # a previous tx of ours is still propagating
+            raise
+        rc = w3.eth.wait_for_transaction_receipt(h, timeout=120)
+        return h.hex(), rc.status
 
 def main():
     interval = pool.functions.rebalanceInterval().call()
