@@ -9,11 +9,11 @@ code{background:#0f1620;border:1px solid #1f2a37;border-radius:5px;padding:1px 5
 </style></head><body><div class="wrap">
 <div class="nav"><a href="/">live status</a><a href="/live">the machine</a><a href="/vault">vault</a><a href="https://github.com/PunzRH/punzrh">source</a><a href="https://t.me/PunzRh">telegram feed</a></div>
 <h1>How __SYM__ works</h1>
-<div class="sub">A meme coin whose backing is a tokenized PONS short that lives on-chain, reprices every minute, and that any holder can redeem. Everything below is verifiable; addresses are at the bottom.</div>
+<div class="sub">A meme coin whose trading fees short PONS: in an on-chain perp vault (v1) and in a real position on Robinhood Lighter held by a contract (v2). Both reprice every minute and any holder can redeem their share. Everything below is verifiable; addresses are at the bottom.</div>
 
 <h2>1. The idea</h2>
 <p>On 6 Sep 2026 <a href="https://x.com/loraclexyz">@loraclexyz</a> tweeted: <i>"we need tokenized perp position on robinhood lighter, imagine pairing a meme coin with a PONS short."</i> __SYM__ is that, built the only way it can be done without trusting anyone: the perp itself is a contract on Robinhood Chain, its positions are ERC‑20 tokens, and the meme coin's fees buy the short side automatically.</p>
-<div class="box"><b>What makes it new.</b> Other "perp-backed" coins hold a real exchange position in a wallet a team controls. That position can be liquidated, can't be read by a contract, and can't be withdrawn by holders. In __SYM__ the position <i>is</i> a contract: no custody, no liquidation, no operator, and every holder can cash out their share of it, any time, by burning __SYM__.</div>
+<div class="box"><b>What makes it new.</b> The short is never in a wallet a person controls. __SYM__ runs two shorts side by side, fed by the same fees: <b>v1</b>, a perp vault that lives entirely on Robinhood Chain (sections 3–6), and <b>v2</b>, a real PONS short on the Robinhood Lighter order book held by a contract (section 7). Both have no operator, and every holder can cash out their share of either, any time, by burning __SYM__.</div>
 
 <h2>2. What a perp short actually is</h2>
 <p>A perpetual short never sells the asset. It's a contract that pays you when the price falls and charges you when it rises, settled against an index price, with the other side of the trade as your counterparty. On Lighter or Hyperliquid the counterparty is an order book. In __SYM__'s vault the counterparty is whoever holds the long side of the same pool. Same instrument, different venue.</p>
@@ -55,33 +55,49 @@ code{background:#0f1620;border:1px solid #1f2a37;border-radius:5px;padding:1px 5
 <h2>6. The peg bot, and why it pays holders</h2>
 <p>sPONS has a small public market (sPONS/ETH) so terminals can chart it and so Backing can buy instantly. Fees push that market above NAV; a keeper sells sPONS back down, keeping the chart at NAV. It buys from the vault at NAV and sells at NAV+1‑3%, so it earns a spread. <b>Everything it earns above its working inventory is sent to Backing</b>, i.e. to holders' floor. Those transfers show as 💝 in the <a href="/live">live feed</a>.</p>
 
-<h2>7. What nobody can do</h2>
+<h2>7. Backing v2: the real short on Robinhood Lighter</h2>
+<p>Robinhood Lighter is a perp exchange that runs as its own rollup on Robinhood Chain. Its bridge lets <i>any address</i>, including a contract, open an account by depositing USDG. <b>LighterBacking</b> is a contract that did exactly that. It owns Lighter account <b>23662</b> and is short PONS there at 1.5×.</p>
+<div class="flow">  ETH fees ──► LighterBacking.fund()  : ETH → USDG → deposit to the contract's Lighter account
+                    keeper (trading key) : sells PONS on the order book until the short = 1.5× the collateral
+  holder   ──► __SYM__ burn → redeem()  : L1 reduce-only close of your share + withdrawal, paid to the contract
+                    settle()            : pays your claim in USDG when Lighter delivers it (≈1–7 min)</div>
+<p><b>Why it's trustless.</b> Lighter only ever pays withdrawals to the account's owner, which is the contract. Moving funds to another Lighter account needs the owner's private key, and a contract has none. The keeper holds a <i>trading</i> key that can open and close positions and nothing else. Worst case is a bad trade; theft is not possible.</p>
+<p><b>Why the keeper is needed.</b> Lighter's on-chain entry point can only place reduce-only orders (close, never open). So the contract registers one trading key once, and the keeper uses it to open the short. Closing does not need the key: <code>redeem()</code> sends a reduce-only close straight from the contract, so holders can always exit even if every keeper disappears.</p>
+<p><b>Where v2's money comes from.</b> ETH sent to the contract by anyone; the peg bot's profit; and <b>FeeFeeder2</b>, a liquidity position in the __SYM__/ETH pool that anyone can join. Depositors keep their principal and can withdraw it at any time. Every fee that liquidity earns goes to LighterBacking (ETH) and to burn (__SYM__); none of it goes to depositors. That is the "boost the short" button on the <a href="/vault">vault page</a>.</p>
+<p><b>v1 and v2 together.</b> Same fees, same redeem button. v1 settles instantly on-chain and cannot be liquidated; v2 is the literal position on the real market and can (liquidation price is shown live). Holding __SYM__ is holding a slice of both.</p>
+
+<h2>8. What nobody can do</h2>
 <table><tr><th>Contract</th><th>Admin power</th></tr>
+<tr><td>LighterBacking (v2)</td><td>No owner. <code>fund()</code>, <code>sync()</code>, <code>settle()</code> are permissionless. A trading key was registered once and cannot be changed. Withdrawals can only land on the contract.</td></tr>
+<tr><td>FeeFeeder2</td><td>No owner. Depositors can only withdraw their own shares. Fees can only go to LighterBacking and burn.</td></tr>
 <tr><td>Vault (PonsPerpPool)</td><td>Owner is <code>0x0</code>. Mint/burn fee locked at 0. No pause, no upgrade.</td></tr>
 <tr><td>__SYM__ token</td><td>No owner function at all. Fixed supply, no mint.</td></tr>
 <tr><td>Locked LP (V4Launch)</td><td>Owner = Backing. Only function: collect fees. Liquidity can never be removed.</td></tr>
 <tr><td>Backing</td><td>No owner. <code>harvest()</code> and <code>claim()</code> are permissionless; sPONS leaves only via <code>redeem()</code>.</td></tr>
 <tr><td>Keepers (rebalance, harvest, peg)</td><td>Call public functions from an ops wallet. If they stop, anyone can call the same functions; nothing is trapped.</td></tr></table>
 
-<h2>8. What it is not</h2>
+<h2>9. What it is not</h2>
 <div class="box warn"><ul>
-<li>It is <b>not a borrow</b>. No PONS is sold. __SYM__ volume has zero effect on the PONS price.</li>
-<li>It is <b>not on Lighter</b>. A Lighter position lives on Lighter's rollup and can't be tokenized or read on‑chain. The vault is our own perp so the position can be a token holders own.</li>
-<li>It is <b>1×</b> and <b>pooled</b>: payoff depends on the balance between sides (section 3). The contract supports leverage up to 5× for a future vault; this one is 1×.</li>
+<li>v1 is <b>not a borrow</b>. No PONS is sold in the vault. v2 does sell PONS on Lighter's order book, in the contract's own account.</li>
+<li>The vault (v1) is <b>1×</b> and <b>pooled</b>: payoff depends on the balance between sides (section 3). v2 is 1.5× on a real order book and has a liquidation price, shown live.</li>
 <li>The floor is small early. It's a share of fees, not of market cap. It only grows.</li>
 <li><b>No audit yet.</b> The code is short (~600 lines) and public. Read it.</li></ul></div>
 
-<h2>9. Verify it yourself, without our website</h2>
+<h2>10. Verify it yourself, without our website</h2>
 <p>Every contract is verified on Blockscout. Open a contract → <b>Read/Write contract</b> → connect a wallet.</p>
 <ul><li>Vault: <code>sharePriceWei(1)</code> = sPONS NAV · <code>shortBal()</code>/<code>longBal()</code> · <code>epochCount()</code> = rebalances · <code>owner()</code> = 0x0</li>
 <li>Backing: <code>sponsBacking()</code> = sPONS held · <code>floorWeiPerToken()</code> = what 1 __SYM__ redeems for · <code>totalEthSwapped()</code> + <code>totalEthCommitted()</code> = fee ETH converted</li>
 <li>Go long: vault <code>commitMint(0)</code> with ETH → 2 min → <code>claim(id, claimableEpoch(id))</code>. Go short: <code>commitMint(1)</code>. Exit: <code>commitBurn(side, shares)</code>.</li>
-<li>Redeem: __SYM__ <code>redeem(amount)</code>.</li></ul>
+<li>Redeem: __SYM__ <code>redeem(amount)</code>.</li>
+<li>v2 position, straight from the exchange: <a href="https://api.rh.lighter.xyz/api/v1/account?by=index&value=23662">api.rh.lighter.xyz/api/v1/account?by=index&amp;value=23662</a>. On-chain mirror: LighterBacking <code>baseTicks()</code> (short size ×10), <code>equityUnits()</code> (USDG ×1e6), <code>accountIndex()</code>.</li>
+<li>Boost: FeeFeeder2 <code>add(punzAmount)</code> with ETH → <code>withdraw(shares)</code> any time; <code>totalEthFed()</code> = fees sent to the short.</li></ul>
 
-<h2>10. Addresses</h2>
+<h2>11. Addresses</h2>
 <table><tr><td>__SYM__</td><td><a href="https://robinhoodchain.blockscout.com/address/__COIN__?tab=contract"><code>__COIN__</code></a></td></tr>
 <tr><td>Vault</td><td><a href="https://robinhoodchain.blockscout.com/address/__VAULT__?tab=contract"><code>__VAULT__</code></a></td></tr>
 <tr><td>Backing</td><td><a href="https://robinhoodchain.blockscout.com/address/__BACKING__?tab=contract"><code>__BACKING__</code></a></td></tr>
-<tr><td>sPONS</td><td><code>__SPONS__</code></td></tr><tr><td>lPONS</td><td><code>__LPONS__</code></td></tr></table>
+<tr><td>sPONS</td><td><code>__SPONS__</code></td></tr><tr><td>lPONS</td><td><code>__LPONS__</code></td></tr>
+<tr><td>LighterBacking (v2)</td><td><a href="https://robinhoodchain.blockscout.com/address/__LIGHTERBACKING__?tab=contract"><code>__LIGHTERBACKING__</code></a> · Lighter account 23662</td></tr>
+<tr><td>FeeFeeder2 (boost)</td><td><a href="https://robinhoodchain.blockscout.com/address/__FEEFEEDER__?tab=contract"><code>__FEEFEEDER__</code></a></td></tr></table>
 <p class="k">Source: <a href="https://github.com/PunzRH/punzrh">github.com/PunzRH/punzrh</a> · Live: <a href="/">live.punzrh.com</a> · Feed: <a href="https://t.me/PunzRh">t.me/PunzRh</a></p>
 </div></body></html>

@@ -284,6 +284,8 @@ class H(BaseHTTPRequestHandler):
         if self.path.startswith("/data"):
             with lock: body = json.dumps(history[-2000:]).encode()
             ct = "application/json"
+            self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         elif self.path.startswith("/metrics"):
             # punzrh.com readout feed: {tokenAddress, marketPriceEth, shortNavEth, backingPerPunzEth}
             with lock: n = history[-1] if history else {}
@@ -404,7 +406,8 @@ try:
 except FileNotFoundError:
     HOW_PAGE = "<p>how_page.html missing</p>"
 HOW_PAGE = (HOW_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__LPONS__", DEP.get("longToken_lPONS", ""))
-            .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", "")))
+            .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", ""))
+            .replace("__LIGHTERBACKING__", DEP.get("lighterBacking", "")).replace("__FEEFEEDER__", DEP.get("feeFeeder", "")))
 LIVE_PAGE = (LIVE_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__LPONS__", DEP.get("longToken_lPONS", ""))
              .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", "")))
 LONG_PAGE = (LONG_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__LPONS__", DEP.get("longToken_lPONS", ""))
