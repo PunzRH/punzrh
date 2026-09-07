@@ -79,5 +79,8 @@
   "feeFeeder_deprecated": "0xC943Ea6b597849b3Fc25B653b677c737Fc88C99C",
   "feeFeeder_locked": "0x40f0e263f6C3E7079E1897941fc27490734c55E7",
   "feeFeeder_bricked": "0x9B81c0577cCEBfef2920fd061539CDc6235377ef",
-  "feeFeeder_bricked_note": "FeeFeeder2 0x9B81: recenter() re-added 0 liquidity after a one-sided (all-ETH) range exit; every function now reverts. 1.111 ETH of depositor principal is permanently stuck. Do not link or use."
+  "feeFeeder_bricked_note": "FeeFeeder2 0x9B81: recenter() re-added 0 liquidity after a one-sided (all-ETH) range exit; every function now reverts. 1.111 ETH of depositor principal is permanently stuck. Do not link or use.",
+  "feeFeeder": "0xb7D53B0Adac72cAA6eb94b39aa5C81DAEbCec17E",
+  "feeFeeder_kind": "FeeFeeder3",
+  "feeFeeder_halfRange": 4000
 }

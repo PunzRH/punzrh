@@ -38,10 +38,15 @@ Go long = <code>commitMint(0)</code> with ETH, then <code>claim(id, claimableEpo
 <div class="card"><h2>Redeem __SYM__ for its share of the short</h2><div class="k">Burns your __SYM__ and pays your pro-rata sPONS out of the Backing contract. Instant, no waiting. This is the floor.</div>
 <div class="row"><input id="rd" value="0"> __SYM__ <button id="rdb" class="red" disabled>Redeem</button><span id="rdv" class="k"></span></div></div>
 
-<div class="card" style="border-color:#5a4a1f"><h2 style="color:#ffb347">Boost the short — paused</h2><div class="k">The boost contract (FeeFeeder2) has a bug in its re-centering logic: after PUNZ moved out of its price range it re-added zero liquidity and its functions now revert. 1.11 ETH of the developer's own principal is stuck in it; no holder funds are affected, and nobody else can deposit into it. A fixed version will be published with a fork test of this exact failure before it is linked here.</div></div>
+<div class="card" style="border-color:#3a4a7a"><h2 style="color:#8fb3ff">Boost the short with your liquidity — withdraw any time</h2>
+<div class="k">Optional. Put ETH + __SYM__ into the trading pool and every fee it earns goes straight into the PONS short on Robinhood Lighter (and burns __SYM__). You keep your money: take it back whenever you want, no lock, no waiting. You just don't keep the fees, the short does. Add both ETH and __SYM__ in roughly equal value; what doesn't fit the range stays yours and is put to work at the next re-centre.
+<span style="opacity:.7">This is a liquidity position (contract FeeFeeder3, range about ±49% around the price): the mix of ETH and __SYM__ you get back shifts with price, like any LP, and a big round trip costs some value. The previous contract (FeeFeeder2) bricked itself after a range exit; this one is fork-tested against that exact move.</span></div>
+<div class="row"><input id="ffE" value="0"> ETH + <input id="ffP" value="0"> __SYM__ <button id="ffA" disabled>Approve __SYM__</button><button id="ffAdd" disabled>Add</button></div>
+<div class="row"><input id="ffW" value="0"> shares <button id="ffWd" class="red" disabled>Withdraw principal</button><button id="ffWdAll" class="red" disabled>Withdraw all</button><span id="ffMine" class="k"></span></div>
+<div class="grid" id="ffStats" style="margin-top:10px"></div></div>
 
 <div class="log" id="log"></div>
-<div class="k" style="margin-top:14px">Vault <code>__VAULT__</code> · sPONS <code>__SPONS__</code> · lPONS <code>__LPONS__</code> · __SYM__ <code>__COIN__</code> · Backing <code>__BACKING__</code> · LighterBacking <code>__LIGHTERBACKING__</code> · <a href="https://rh-scan.com/address/__VAULT__">rh-scan</a> · <a href="/">live status</a></div>
+<div class="k" style="margin-top:14px">Vault <code>__VAULT__</code> · sPONS <code>__SPONS__</code> · lPONS <code>__LPONS__</code> · __SYM__ <code>__COIN__</code> · Backing <code>__BACKING__</code> · FeeFeeder3 <code>__FEEFEEDER__</code> · LighterBacking <code>__LIGHTERBACKING__</code> · <a href="https://rh-scan.com/address/__VAULT__">rh-scan</a> · <a href="/">live status</a></div>
 </div><script>
 const VAULT="__VAULT__", SPONS="__SPONS__", LPONS="__LPONS__", COIN="__COIN__", BACKING="__BACKING__", FF="__FEEFEEDER__", LB="__LIGHTERBACKING__", CHAIN="0x1237", RPC="https://rpc.mainnet.chain.robinhood.com";
 const pad=x=>BigInt(x).toString(16).padStart(64,"0"); const big=h=>BigInt(h); const eth=w=>Number(w)/1e18; const MAX=2n**256n-1n;
@@ -76,11 +81,11 @@ async function connect(){
   acct=(await window.ethereum.request({method:'eth_requestAccounts'}))[0];
   try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN}]})}
   catch(e){if(e.code===4902){await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN,chainName:'Robinhood Chain',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:['https://rh-scan.com']}]})}else throw e}
-  $('who').textContent=acct;['mL','mS','bbL','bbS','cl','rdb'].forEach(i=>{if($(i))$(i).disabled=false});log('connected '+acct);await stats();await mine();pending();
+  $('who').textContent=acct;['mL','mS','bbL','bbS','cl','rdb','ffA','ffAdd','ffWd','ffWdAll'].forEach(i=>{if($(i))$(i).disabled=false});log('connected '+acct);await stats();await mine();pending();ffMine();
 }
-// ---- FeeFeeder2 (principal-preserving; fees → Lighter short, PUNZ burned)
+// ---- FeeFeeder3 (principal-preserving; fees → Lighter short, PUNZ burned)
 async function ffStats(){
-  return;
+  if(!FF||FF.startsWith('__'))return;
   const [liq,fed,burned,ts]=await Promise.all([call(FF,'0x1a686502'),call(FF,'0xdc937817'),call(FF,'0xfbddbf94'),call(FF,'0x3a98ef39')]);
   $('ffStats').innerHTML=`<div><div class="k">liquidity</div><div class="v">${big(liq)>0n?'active':'empty'}</div></div><div><div class="k">ETH fed to short</div><div class="v">${eth(big(fed)).toFixed(5)}</div></div>
   <div><div class="k">__SYM__ burned</div><div class="v">${(eth(big(burned))/1e3).toFixed(1)}K</div></div><div><div class="k">total shares</div><div class="v">${(Number(big(ts))/1e18).toFixed(4)}</div></div>`;
@@ -95,7 +100,7 @@ async function ffMine(){
 async function ffApprove(){const h=await tx(COIN,'0x095ea7b3'+pad(FF)+pad(MAX));log('approve __SYM__ for FeeFeeder2 sent '+h)}
 async function ffAdd(){const v=wei($('ffE').value),p=wei($('ffP').value);if(v<=0n&&p<=0n)return log('enter ETH and/or __SYM__');
   if(p>0n){const al=big(await call(COIN,'0xdd62ed3e'+pad(acct)+pad(FF)));if(al<p)return log('approve __SYM__ first (button on the left), wait for it to confirm, then Add')}
-  if(!confirm(`Add ${eth(v)} ETH + ${eth(p).toLocaleString()} __SYM__ as fee-feeding liquidity? Your principal stays withdrawable; all fees go to the Lighter short / burn. Unused amounts are refunded in the same tx.`))return log('add cancelled');
+  if(!confirm(`Add ${eth(v)} ETH + ${eth(p).toLocaleString()} __SYM__ as fee-feeding liquidity? Your principal stays withdrawable; all fees go to the Lighter short / burn. Anything that doesn't fit the range stays yours as idle principal.`))return log('add cancelled');
   const h=await tx(FF,'0x1003e2d2'+pad(p),v);log('add sent '+h)}
 async function ffWithdraw(all){const held=BigInt($('ffMine').dataset.sh||'0');let s=all?held:wei($('ffW').value);if(s>held)s=held;if(s<=0n)return log('enter shares (or nothing to withdraw)');
   if(!confirm(`Withdraw ${all?'ALL':eth(s)} shares of principal (ETH + __SYM__ at the current pool mix)?`))return log('withdraw cancelled');
@@ -122,6 +127,9 @@ async function pending(){
 }
 async function claim(){const list=(await pending())||[];let did=0;for(const m of list.filter(x=>x.ready)){const h=await tx(VAULT,'0xc3490263'+pad(m.i)+m.e.slice(2));log('claim sent '+h);did++}if(!did)log('nothing ready yet — wait for the next rebalance after your 2-minute window')}
 const guard=f=>()=>f().catch(e=>log('error: '+(e.message||e)));
+$('ffA').onclick=guard(ffApprove);$('ffAdd').onclick=guard(ffAdd);$('ffWd').onclick=guard(()=>ffWithdraw(false));$('ffWdAll').onclick=guard(()=>ffWithdraw(true));
+try{const q=new URLSearchParams(location.search);if(q.get('eth'))$('ffE').value=q.get('eth');if(q.get('punz'))$('ffP').value=q.get('punz')}catch(e){}
+ffStats();setInterval(()=>{ffStats();ffMine()},20000);
 $('c').onclick=guard(connect);$('mL').onclick=guard(()=>mint(0));$('mS').onclick=guard(()=>mint(1));$('bbL').onclick=guard(()=>burn(0));$('bbS').onclick=guard(()=>burn(1));$('cl').onclick=guard(claim);$('rdb').onclick=guard(redeem);
 $('rd').oninput=()=>{$('rdv').textContent=`≈ ${(parseFloat($('rd').value||0)*cache.floor/cache.navS).toFixed(3)} sPONS`};
 stats();setInterval(()=>{stats();mine();pending()},20000);

@@ -83,7 +83,7 @@ def snapshot():
                 s["v2_floor_usdg_per_punz"] = (s["v2_equity_usdg"] / _sup) if _sup else 0.0   # USDG per 1 PUNZ (contract view truncates to 0 at this size)
                 s["v2_eth_waiting"] = w3.eth.get_balance(LB.address) / 1e18
                 if FF: s["ff_liquidity"] = FF.functions.liquidity().call(); s["ff_eth_fed"] = FF.functions.totalEthFed().call() / 1e18; s["ff_punz_burned"] = FF.functions.totalPunzBurned().call() / 1e18; s["ff_in_range"] = FF.functions.inRange().call()
-                if FF and DEP.get("feeFeeder_kind") == "FeeFeeder2": s["ff_total_shares"] = FF.functions.totalShares().call() / 1e18
+                if FF and DEP.get("feeFeeder_kind") in ("FeeFeeder2", "FeeFeeder3"): s["ff_total_shares"] = FF.functions.totalShares().call() / 1e18
                 if FFL:   # original locked feeder: add its totals so "fed to short" is the full picture
                     s["ff_locked_eth_fed"] = FFL.functions.totalEthFed().call() / 1e18; s["ff_locked_punz_burned"] = FFL.functions.totalPunzBurned().call() / 1e18
                     s["ff_eth_fed"] = s.get("ff_eth_fed", 0) + s["ff_locked_eth_fed"]; s["ff_punz_burned"] = s.get("ff_punz_burned", 0) + s["ff_locked_punz_burned"]

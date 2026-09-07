@@ -23,7 +23,7 @@ PUNZ half is burned. Nobody takes a cut.
   exist. Any holder can burn PUNZ to force-close their share of the short on-chain and get paid in USDG.
 - Describe them as working **together**. Never describe v1 as worse, fake, or synthetic in a negative way.
 
-**Boost (optional).** Anyone can add ETH + PUNZ as liquidity through FeeFeeder2. They keep their principal and can withdraw any time;
+**Boost (optional).** Anyone can add ETH + PUNZ as liquidity through FeeFeeder3. They keep their principal and can withdraw any time;
 every fee that liquidity earns goes to the v2 short (ETH) and burn (PUNZ). Call it "Boost the short with your liquidity". Do not lead with
 the contract name.
 
@@ -49,7 +49,8 @@ the contract name.
 | Locked LP (V4Launch) | `0xE543a5fe1Ebe504FdDdD0D41C8B59D3937c73e90` |
 | sPONS/ETH market (SeedPool) | `0x4e74795123530fa20EbCDCc6594DfeF389C4d766` |
 | **LighterBacking v2** | `0x886AE5d94E5b85A0FA40bA766D1A4689F53d1d39` — Lighter account **23662** |
-| FeeFeeder2 (boost) | **BRICKED — remove every link and the boost form until a fixed contract is announced** |
+| **FeeFeeder3 (boost, current)** | `0xb7D53B0Adac72cAA6eb94b39aa5C81DAEbCec17E` |
+| FeeFeeder2 | BRICKED, never link it |
 | FeeFeeder (original, locked) | `0x40f0e263f6C3E7079E1897941fc27490734c55E7` |
 | PONS | `0x39dBED3a2bd333467115dE45665cC57F813C4571` |
 
@@ -142,13 +143,13 @@ All calls are plain `eth_sendTransaction` from the user's wallet. Chain `0x1237`
 | Go short (mint sPONS) | Vault | `0x4f60dbaf` + pad(1) | ETH | same |
 | Burn lPONS / sPONS for ETH | Vault | `0xc3054d94` + pad(side) + pad(shares) | 0 | needs ERC-20 approve of that token to the vault first |
 | Claim matured commit | Vault | `0xc3490263` + pad(id) + epoch(32 bytes) | 0 | `epoch` from `claimableEpoch(id)` = `0x074bb1ec`+pad(id); ready when ≠ max uint |
-| Boost: approve PUNZ | PUNZ | `0x095ea7b3` + pad(FeeFeeder2) + pad(max) | 0 | once |
-| Boost: add | FeeFeeder2 | `0x1003e2d2` + pad(punzAmount) | ETH | both sides needed, ≈ equal value; leftovers refunded |
-| Boost: withdraw | FeeFeeder2 | `0x2e1a7d4d` + pad(shares) | 0 | shares from `shares(addr)` = `0xce7c2ac2`+pad(addr) |
+| Boost: approve PUNZ | PUNZ | `0x095ea7b3` + pad(FeeFeeder3) + pad(max) | 0 | once |
+| Boost: add | FeeFeeder3 | `0x1003e2d2` + pad(punzAmount) | ETH | ≈ equal value works best; what doesn't fit stays as the depositor's idle principal (not refunded, still withdrawable) |
+| Boost: withdraw | FeeFeeder3 | `0x2e1a7d4d` + pad(shares) | 0 | shares from `shares(addr)` = `0xce7c2ac2`+pad(addr) |
 | v2 redeem (burn PUNZ, force-close share) | LighterBacking | `redeem(uint256 amount, uint256 maxBuyPriceTicks)` | 0 | advanced; not on the page yet, link to Blockscout write tab |
 
 Reads used for the stats strip: vault `sharePriceWei(uint8)` = `0x6b6dfd3c`+pad(side); `longBal()` `0xf1e2dbbf`; `shortBal()`
-`0xa3af9574`; Backing `sponsBacking()` `0x48f84dc5`; `floorWeiPerToken()` `0xd438686f`; FeeFeeder2 `liquidity()` `0x1a686502`,
+`0xa3af9574`; Backing `sponsBacking()` `0x48f84dc5`; `floorWeiPerToken()` `0xd438686f`; FeeFeeder3 `liquidity()` `0x1a686502`,
 `totalEthFed()` `0xdc937817`, `totalPunzBurned()` `0xfbddbf94`, `totalShares()` `0x3a98ef39`, `principalOf(addr)` `0x61e20a1c`+pad(addr)
 → (eth, punz).
 
