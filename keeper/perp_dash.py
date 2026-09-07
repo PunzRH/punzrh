@@ -202,7 +202,7 @@ PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>sPONS — tok
 <div class="sub">Every minute the vault reads PONS's own Uniswap pool and moves ETH between the long and short sides. When PONS falls, sPONS gains — and the floor under every __SYM__ rises with it. 3% of every __SYM__ buy is converted into sPONS held by the Backing contract; 3% of every sell is burned. Vault owner renounced, liquidity locked, no admin keys. Data straight from chain every 30s.</div>
 <div class="tiles" id="tiles"></div>
 <div class="card"><canvas id="c" height="110"></canvas></div>
-<div class="foot">Chart normalized to 100 at the start of the window. __SYM__ <code>__COIN__</code> · Vault <code>__VAULT__</code> · Backing <code>__BACKING__</code> · sPONS <code>__SPONS__</code> · <a href="https://rh-scan.com/address/__VAULT__" style="color:#58a6ff">verify on rh-scan</a> · <a href="https://punzrh.com" style="color:#58a6ff">punzrh.com</a> · <a href="/vault" style="color:#3fb950;font-weight:600">Vault: go long, go short, burn, redeem __SYM__ →</a></div>
+<div class="foot">Chart normalized to 100 at the start of the window. __SYM__ <code>__COIN__</code> · Vault <code>__VAULT__</code> · Backing <code>__BACKING__</code> · sPONS <code>__SPONS__</code> · <a href="https://rh-scan.com/address/__VAULT__" style="color:#58a6ff">verify on rh-scan</a> · <a href="https://punzrh.com" style="color:#58a6ff">punzrh.com</a> · <a href="/how" style="color:#58a6ff;font-weight:600">How it works →</a> · <a href="/vault" style="color:#3fb950;font-weight:600">Vault: go long, go short, burn, redeem __SYM__ →</a></div>
 </div><script>
 let chart;
 function pct(a,b){return ((a/b-1)*100)}
