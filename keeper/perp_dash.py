@@ -63,6 +63,11 @@ def snapshot():
         s["eth_to_short"] = (BACKING.functions.totalEthCommitted().call() + BACKING.functions.totalEthSwapped().call()) / 1e18  # vault path + instant market path
         s["burned"] = BACKING.functions.totalCoinBurned().call() / 1e18
         s["implied"] = s["floor"]; s["spons_per_ts"] = 0
+        try:
+            _sq = int.from_bytes(w3.eth.call({"to": "0x52e65B17fB6E5BA00Ed806f37Afcd2DaA50271Ca", "data": "0x3850c7bd"})[:32], "big")
+            s["eth_usd"] = (_sq / 2 ** 96) ** 2 * 1e12
+            s["supply"] = w3.eth.contract(address=TSPONS, abi=json.loads('[{"name":"totalSupply","type":"function","inputs":[],"outputs":[{"type":"uint256"}],"stateMutability":"view"}]')).functions.totalSupply().call() / 1e18
+        except Exception: pass
         # ---- Backing v2 (Lighter short) + FeeFeeder, if deployed
         if DEP.get("lighterBacking"):
             try:
@@ -72,7 +77,8 @@ def snapshot():
                 s["v2_collateral_usdg"] = LB.functions.collateralUnits().call() / 1e6
                 s["v2_short_pons"] = LB.functions.baseTicks().call() / 10 ** DEP["lighter"]["sizeDecimals"]
                 s["v2_equity_usdg"] = LB.functions.equityUnits().call() / 1e6
-                s["v2_floor_usdg_per_punz"] = LB.functions.floorUnitsPerPunz().call() / 1e6
+                _sup = w3.eth.contract(address=TSPONS, abi=json.loads('[{"name":"totalSupply","type":"function","inputs":[],"outputs":[{"type":"uint256"}],"stateMutability":"view"}]')).functions.totalSupply().call() / 1e18
+                s["v2_floor_usdg_per_punz"] = (s["v2_equity_usdg"] / _sup) if _sup else 0.0   # USDG per 1 PUNZ (contract view truncates to 0 at this size)
                 s["v2_eth_waiting"] = w3.eth.get_balance(LB.address) / 1e18
                 if FF: s["ff_liquidity"] = FF.functions.liquidity().call(); s["ff_eth_fed"] = FF.functions.totalEthFed().call() / 1e18; s["ff_punz_burned"] = FF.functions.totalPunzBurned().call() / 1e18; s["ff_in_range"] = FF.functions.inRange().call()
                 # live view of the position from the Robinhood Lighter API (display only; the contract never depends on it)
@@ -280,7 +286,7 @@ class H(BaseHTTPRequestHandler):
                                # extended live-index fields (same names as site/functions/metrics.js)
                                "ponsPriceEth": n.get("pons"), "longNavEth": n.get("nav_l"), "sponsBacking": n.get("backing_spons"),
                                "feesToShortEth": n.get("eth_to_short"), "burned": n.get("burned"),
-                               "vaultOwner": "0x0000000000000000000000000000000000000000", "source": "chain via keeper host, 30s poll",
+                               "vaultOwner": "0x0000000000000000000000000000000000000000", "source": "chain via keeper host, 30s poll", "ethUsd": n.get("eth_usd"), "totalSupply": n.get("supply"),
                                # Backing v2 (real PONS short on Robinhood Lighter) — present once deployed
                                **{k: n.get(k) for k in ("v2_collateral_usdg", "v2_short_pons", "v2_equity_usdg", "v2_floor_usdg_per_punz", "v2_eth_waiting",
                                                         "ff_eth_fed", "ff_punz_burned", "ff_in_range", "lighter_account", "lighter_collateral",
@@ -299,6 +305,10 @@ class H(BaseHTTPRequestHandler):
             body = LIVE_PAGE.encode(); ct = "text/html; charset=utf-8"
         elif self.path.startswith("/how"):
             body = HOW_PAGE.encode(); ct = "text/html; charset=utf-8"
+        elif self.path.startswith("/charts"):
+            body = PAGE.encode(); ct = "text/html; charset=utf-8"
+        elif self.path == "/" or self.path.startswith("/?"):
+            body = HOME_PAGE.encode(); ct = "text/html; charset=utf-8"
         else:
             body = PAGE.encode(); ct = "text/html; charset=utf-8"
         self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Content-Length", str(len(body))); self.end_headers()
@@ -377,6 +387,12 @@ try:
     LIVE_PAGE = open(os.path.join(HERE, "live_page.html")).read()
 except FileNotFoundError:
     LIVE_PAGE = "<p>live_page.html missing</p>"
+try:
+    HOME_PAGE = open(os.path.join(HERE, "home_page.html")).read()
+except FileNotFoundError:
+    HOME_PAGE = "<p>home_page.html missing</p>"
+HOME_PAGE = (HOME_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", ""))
+             .replace("__LIGHTERBACKING__", DEP.get("lighterBacking", "")).replace("__FEEFEEDER__", DEP.get("feeFeeder", "")))
 try:
     HOW_PAGE = open(os.path.join(HERE, "how_page.html")).read()
 except FileNotFoundError:

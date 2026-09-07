@@ -63,6 +63,12 @@ def main():
     if os.environ.get("PEG") == "1" and DEP.get("spons_eth_pool"):
         import peg_keeper
         peg = peg_keeper.Peg(w3, acct.address, send, DEP); peg.ensure_approvals(); last_peg = 0
+        if DEP.get("lighterBacking"): os.environ.setdefault("V2_SINK", DEP["lighterBacking"])
+        def _send_raw(tx):
+            tx.update({"from": acct.address, "nonce": w3.eth.get_transaction_count(acct.address, "pending"), "chainId": w3.eth.chain_id})
+            gp = w3.eth.gas_price; tx["maxFeePerGas"] = int(gp * 1.4); tx["maxPriorityFeePerGas"] = min(int(gp * 0.5) + 1, tx["maxFeePerGas"]); tx["gas"] = 60000
+            h = w3.eth.send_raw_transaction(acct.sign_transaction(tx).raw_transaction); rc = w3.eth.wait_for_transaction_receipt(h, timeout=120); return h.hex(), rc.status
+        peg.send_raw = _send_raw
         print(f"peg keeper ON | sPONS/ETH pool {DEP['spons_eth_pool']} | band {peg_keeper.BAND_BPS} bps | every {os.environ.get('PEG_SECS', '60')}s", flush=True)
     # Backing v2 (Lighter short): harvest LP fees → fund the short → settle redeem claims. Permissionless calls; keeper pays gas.
     v2 = None

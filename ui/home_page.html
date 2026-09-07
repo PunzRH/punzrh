@@ -1,0 +1,76 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__SYM__ · the other side of pons</title>
+<style>
+:root{--bg:#07090c;--card:#0d1117;--line:#1b232e;--txt:#e8edf2;--mut:#7d8896;--g:#39ff8a;--r:#ff4d6d;--o:#ffb347;--b:#58a6ff}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.5 -apple-system,Inter,system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+.nav{display:flex;gap:22px;align-items:center;margin-bottom:26px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.nav b{color:#fff;font-size:18px;letter-spacing:0;text-transform:none;margin-right:10px}.nav a{color:var(--mut);text-decoration:none}.nav a:hover{color:#fff}.nav .cta{margin-left:auto;background:var(--g);color:#000;padding:9px 16px;border-radius:8px;font-weight:700;letter-spacing:0;text-transform:none;font-size:14px}
+.hero{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;align-items:stretch}@media(max-width:860px){.hero{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.lab{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+.big{font-size:38px;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.sub{color:var(--mut);font-size:13px}.g{color:var(--g)}.r{color:var(--r)}.o{color:var(--o)}.b{color:var(--b)}
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:16px 0}
+.strip .card{padding:14px 16px}.strip .v{font-size:24px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.pos h3{margin:0 0 4px;font-size:16px}.pos .tag{display:inline-block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:#132019;color:var(--g);border:1px solid #1f4a2e;margin-left:8px}
+.pos .tag.v1{background:#1a1b2b;color:var(--b);border-color:#2b3a6a}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:12px;font-size:14px}.kv div{display:flex;justify-content:space-between;border-bottom:1px dashed #1b232e;padding:5px 0}.kv span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.btn{display:inline-block;padding:9px 14px;border-radius:8px;border:1px solid var(--line);color:#fff;text-decoration:none;font-size:14px;font-weight:600}.btn.pri{background:var(--g);color:#000;border-color:var(--g)}.btn.warn{border-color:#4a3a1f;color:var(--o)}
+.feed{max-height:420px;overflow:auto;font-size:13px}.ev{display:flex;gap:10px;padding:7px 4px;border-bottom:1px solid var(--line)}.ev .t{color:var(--mut);min-width:60px;font-variant-numeric:tabular-nums}.ev a{margin-left:auto;color:var(--b);text-decoration:none}
+.ev.buy{border-left:3px solid var(--g)}.ev.sell{border-left:3px solid var(--r)}.ev.harvest{border-left:3px solid var(--o)}.ev.donate,.ev.redeem{border-left:3px solid #c792ea}.ev.rebalance{border-left:3px solid var(--b)}.ev.commit,.ev.spons_buy,.ev.spons_sell,.ev.backing_claim,.ev.burn{border-left:3px solid #3a4756}
+.foot{color:var(--mut);font-size:12px;margin-top:22px;line-height:1.7}.foot code{color:#c9d1d9}.foot a{color:var(--b)}
+.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--g);box-shadow:0 0 0 0 rgba(57,255,138,.6);animation:p 1.6s infinite;margin-right:6px;vertical-align:middle}@keyframes p{0%{box-shadow:0 0 0 0 rgba(57,255,138,.6)}70%{box-shadow:0 0 0 9px rgba(57,255,138,0)}100%{box-shadow:0 0 0 0 rgba(57,255,138,0)}}
+</style></head><body><div class="wrap">
+<div class="nav"><b>__SYM__</b><a href="/">Overview</a><a href="/live">Machine</a><a href="/charts">Charts</a><a href="/vault">Vault</a><a href="/how">Paper</a><a href="https://github.com/PunzRH/punzrh">Source</a><a href="https://t.me/PunzRh">Feed</a><a class="cta" href="https://gmgn.ai/rh/token/__COIN__" target="_blank">Buy __SYM__</a></div>
+
+<div class="hero">
+  <div class="card"><div class="lab"><span class="pulse"></span>live · robinhood chain</div>
+    <div class="big" id="mc">…</div><div class="sub" id="px">market cap · price</div>
+    <div class="strip" style="margin:16px 0 0">
+      <div class="card"><div class="lab">fees → short</div><div class="v" id="fees">…</div><div class="sub">ETH, since launch</div></div>
+      <div class="card"><div class="lab">burned</div><div class="v" id="burned">…</div><div class="sub" id="burnedpct">of supply</div></div>
+      <div class="card"><div class="lab">floor / price</div><div class="v" id="backed">…</div><div class="sub">v1 + v2 redeemable</div></div>
+      <div class="card"><div class="lab">PONS since launch</div><div class="v" id="ponsd">…</div><div class="sub">the thing we short</div></div>
+    </div>
+  </div>
+  <div class="card pos"><h3>OPEN POSITION <span class="tag">v2 · robinhood lighter</span></h3>
+    <div class="sub">A real PONS-PERP short held by a contract with no owner. Lighter account <b id="acct">…</b>.</div>
+    <div class="big" id="v2pnl" style="font-size:30px">…</div><div class="sub">unrealised PnL · USDG</div>
+    <div class="kv"><div><span>size</span><span id="v2size">…</span></div><div><span>entry</span><span id="v2entry">…</span></div><div><span>mark</span><span id="v2mark">…</span></div><div><span>liquidation</span><span id="v2liq">…</span></div><div><span>collateral</span><span id="v2coll">…</span></div><div><span>leverage</span><span>1.5×</span></div></div>
+    <div class="btns"><a class="btn pri" href="/vault#feed">Feed the short →</a><a class="btn" href="/vault#redeem">Redeem __SYM__</a><a class="btn" target="_blank" href="https://robinhoodchain.blockscout.com/address/__LIGHTERBACKING__?tab=contract">Contract</a></div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card pos"><h3>VAULT SHORT <span class="tag v1">v1 · on-chain, no liquidation</span></h3>
+    <div class="sub">sPONS held by the Backing contract; every __SYM__ redeems for its share, instantly.</div>
+    <div class="kv"><div><span>sPONS backing</span><span id="v1spons">…</span></div><div><span>worth</span><span id="v1eth">…</span></div><div><span>sPONS since launch</span><span id="v1s">…</span></div><div><span>lPONS since launch</span><span id="v1l">…</span></div><div><span>vault long / short</span><span id="v1ls">…</span></div><div><span>rebalances</span><span id="v1ep">…</span></div></div>
+    <div class="sub" style="margin-top:10px">This side pays shorts from what longs hold. It is under-longed: going long here currently pays a multiple of the PONS move. <a class="b" href="/vault">Take it →</a></div>
+  </div>
+  <div class="card"><h3 style="margin:0 0 6px;font-size:16px">LIVE FEED <span class="sub">written by the contracts</span></h3><div class="feed" id="feed"></div></div>
+</div>
+
+<div class="foot">__SYM__ <code>__COIN__</code> · Backing v1 <code>__BACKING__</code> · Vault <code>__VAULT__</code> · Backing v2 (Lighter) <code>__LIGHTERBACKING__</code> · FeeFeeder <code>__FEEFEEDER__</code><br>
+No owner on any of it. Verified on Blockscout. <a href="/how">How it works</a> · <a href="https://github.com/PunzRH/punzrh">source</a> · <a href="https://x.com/PunzRH">@PunzRH</a></div>
+</div><script>
+const $=i=>document.getElementById(i); const f=(x,d=2)=>Number(x||0).toLocaleString(undefined,{maximumFractionDigits:d});
+async function tick(){
+  const m=await (await fetch('/metrics')).json(); const h=await (await fetch('/data')).json(); const b=h[0]||{}, n=h[h.length-1]||{};
+  const eth=m.ethUsd||2500, sup=m.totalSupply||0, px=m.marketPriceEth||0; const mc=px*sup*eth;
+  $('mc').textContent='$'+f(mc,0); $('px').textContent=`market cap · $${(px*eth).toPrecision(3)} per __SYM__ · ${f(sup/1e6,1)}M supply`;
+  $('fees').textContent=f(m.feesToShortEth,3); $('burned').textContent=f((m.burned||0)/1e6,1)+'M'; $('burnedpct').textContent=f(100*(m.burned||0)/1e9,2)+'% of supply';
+  const v1floor=(m.backingPerPunzEth||0)*eth, v2floor=(m.v2_floor_usdg_per_punz||0); const backed=px*eth?100*(v1floor+v2floor)/(px*eth):0;
+  $('backed').textContent=f(backed,2)+'%';
+  const pd=b.pons?100*(n.pons/b.pons-1):0; $('ponsd').textContent=(pd>=0?'+':'')+f(pd,2)+'%'; $('ponsd').className='v '+(pd<=0?'g':'r');
+  // v2
+  if(m.lighter_account){$('acct').textContent='#'+m.lighter_account; const u=m.lighter_upnl||0; $('v2pnl').textContent=(u>=0?'+':'')+f(u,3); $('v2pnl').className='big '+(u>=0?'g':'r');
+    $('v2size').textContent=(m.lighter_position_pons?f(Math.abs(m.lighter_position_pons),1)+' PONS short':'no position'); $('v2entry').textContent=f(m.lighter_entry,5); $('v2mark').textContent=f(m.ponsPriceEth*eth,5); $('v2liq').textContent=f(m.lighter_liq,4); $('v2coll').textContent=f(m.lighter_collateral,2)+' USDG';}
+  // v1
+  $('v1spons').textContent=f(m.sponsBacking,0); $('v1eth').textContent=f((m.sponsBacking||0)*(m.shortNavEth||0),3)+' ETH';
+  const sd=b.nav_s?100*(n.nav_s/b.nav_s-1):0, ld=b.nav_l?100*(n.nav_l/b.nav_l-1):0; $('v1s').textContent=(sd>=0?'+':'')+f(sd,2)+'%'; $('v1s').className=sd>=0?'g':'r'; $('v1l').textContent=(ld>=0?'+':'')+f(ld,2)+'%'; $('v1l').className=ld>=0?'g':'r';
+  $('v1ls').textContent=f(n.long_bal,2)+' / '+f(n.short_bal,2)+' ETH'; $('v1ep').textContent=n.epochs||'…';
+}
+async function feed(){const e=await (await fetch('/events')).json(); $('feed').innerHTML=e.slice().reverse().slice(0,60).map(x=>`<div class="ev ${x.kind}"><span class="t">${new Date(x.t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span><span>${x.msg}</span><a target="_blank" href="https://rh-scan.com/tx/${x.tx}">tx</a></div>`).join('')}
+tick();feed();setInterval(tick,15000);setInterval(feed,15000);
+</script></body></html>

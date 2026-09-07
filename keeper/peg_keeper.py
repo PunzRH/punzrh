@@ -136,6 +136,21 @@ class Peg:
             else:
                 profit = value - int(state["base_value_wei"])
                 give = min(max(0, bal_s2 - KEEP_SPONS), max(0, profit * 10 ** 18 // nav_wei))
+            # v2 present: route profit to the Lighter short instead — burn the excess sPONS at the vault for ETH (auto-claimed by perp_keeper),
+            # and push spare ETH above the working float to LighterBacking (fund() turns it into the short).
+            v2 = os.environ.get("V2_SINK")
+            if v2 and give >= DONATE_MIN:
+                self.tok.functions.approve(self.vault.address, give).call({"from": self.me})
+                h, st = self.send(self.tok.functions.approve(self.vault.address, give)); h, st = self.send(self.vault.functions.commitBurn(1, give))
+                state["donated_wei"] = int(state.get("donated_wei", 0)) + give
+                acted = (acted + " | " if acted else "") + f"PROFIT {give/1e18:.2f} sPONS -> burn for ETH -> v2 {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"
+                give = 0
+            if v2:
+                keep = Web3.to_wei(os.environ.get("PEG_KEEP_ETH", "0.15"), "ether"); spare = self.w3.eth.get_balance(self.me) - keep
+                if spare >= Web3.to_wei(0.003, "ether"):
+                    tx = {"to": Web3.to_checksum_address(v2), "value": spare}
+                    h, st = self.send_raw(tx) if hasattr(self, "send_raw") else (None, 0)
+                    if h: acted = (acted + " | " if acted else "") + f"ETH {spare/1e18:.4f} -> LighterBacking (v2) {'OK' if st == 1 else 'REV'} {h[:12]}…"
             if give >= DONATE_MIN:
                 h, st = self.send(self.tok.functions.transfer(self.backing, give))
                 state["donated_wei"] = int(state.get("donated_wei", 0)) + give
