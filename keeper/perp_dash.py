@@ -280,6 +280,9 @@ PAGE = (PAGE.replace("<title>sPONS — tokenized PONS short, live</title>", f"<t
 
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
+    def do_OPTIONS(self):  # CORS preflight for punzrh.com fetches with custom headers
+        self.send_response(204); self.send_header("Access-Control-Allow-Origin", "*"); self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*"); self.send_header("Access-Control-Max-Age", "86400"); self.send_header("Content-Length", "0"); self.end_headers()
     def do_GET(self):
         if self.path.startswith("/data"):
             with lock: body = json.dumps(history[-2000:]).encode()
