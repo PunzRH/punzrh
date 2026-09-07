@@ -1,0 +1,57 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__SYM__ · proof of short</title>
+<style>body{margin:0;background:#0b0f14;color:#e6edf3;font:15px -apple-system,Inter,system-ui,sans-serif}.wrap{max-width:980px;margin:0 auto;padding:24px}
+h1{font-size:24px;margin:0 0 4px}.sub{color:#8b949e;margin-bottom:18px;line-height:1.5}.nav{font-size:14px;color:#8b949e;margin-bottom:16px}.nav a{margin-right:12px;color:#58a6ff}
+.card{background:#111823;border:1px solid #1f2a37;border-radius:12px;padding:16px;margin-bottom:14px}.k{color:#8b949e;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}td,th{padding:8px 6px;border-bottom:1px solid #1f2a37;text-align:left;font-variant-numeric:tabular-nums}th{color:#8b949e;font-weight:600;font-size:12px}
+.ok{color:#3ddc84;font-weight:700}.bad{color:#f85149;font-weight:700}.mut{color:#8b949e}code{color:#c9d1d9;font-size:12px}a{color:#58a6ff}.big{font-size:26px;font-weight:700}
+.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3ddc84;margin-right:6px;animation:p 1.6s infinite}@keyframes p{0%{box-shadow:0 0 0 0 rgba(61,220,132,.6)}70%{box-shadow:0 0 0 9px rgba(61,220,132,0)}100%{box-shadow:0 0 0 0 rgba(61,220,132,0)}}</style></head><body><div class="wrap">
+<div class="nav"><a href="/">live status</a><a href="/stats">stats</a><a href="/vault">vault</a><a href="/how">how it works</a><a href="https://github.com/PunzRH/punzrh">source</a></div>
+<h1><span class="pulse"></span>Proof of short</h1>
+<div class="sub">Two independent sources, read live by <i>your</i> browser, not by us: the Robinhood Lighter exchange API for the contract's own account, and the LighterBacking contract on Robinhood Chain via a public RPC. If the short is real and held by the contract, they agree. Nothing on this page comes from our server.</div>
+
+<div class="card"><div class="k">verdict</div><div class="big" id="verdict">checking…</div><div class="mut" id="when"></div></div>
+
+<div class="card"><div class="k">exchange vs chain</div>
+<table><tr><th>field</th><th>Lighter API (account <span id="acct">…</span>)</th><th>on-chain (LighterBacking)</th><th>match</th></tr><tbody id="rows"></tbody></table>
+<div class="mut" style="margin-top:8px">The on-chain mirror is written by <code>sync()</code>; the contract clamps it so it can only under-state the position, never over-state it. Small drift between syncs is normal; the sign, size and collateral should agree.</div></div>
+
+<div class="card"><div class="k">who controls the account</div>
+<table><tbody>
+<tr><td>Lighter account owner (L1 address)</td><td><code id="owner">__LIGHTERBACKING__</code> — a contract, <a href="https://robinhoodchain.blockscout.com/address/__LIGHTERBACKING__?tab=contract">verified source</a></td></tr>
+<tr><td>Can anyone withdraw to another address?</td><td>No. Lighter's bridge pays withdrawals only to the account's L1 owner. L2 transfers need the owner's L1 private key; a contract has none.</td></tr>
+<tr><td>Trading key</td><td>One API key registered once (<code>registerKey</code>, one-shot). It can open/close positions and nothing else.</td></tr>
+<tr><td>How a holder exits</td><td><code>redeem(amount)</code> burns __SYM__ and sends an L1 reduce-only close for that share, no key needed. Paid in USDG by <code>settle()</code>.</td></tr>
+</tbody></table></div>
+
+<div class="card"><div class="k">redemption queue (on-chain)</div><div id="claims" class="mut">loading…</div></div>
+
+<div class="card"><div class="k">check it without this page</div>
+<div class="mut" style="line-height:1.7">Exchange: <a id="apilink" href="https://api.rh.lighter.xyz/api/v1/account?by=index&value=23662">api.rh.lighter.xyz/api/v1/account?by=index&amp;value=…</a><br>
+Chain: Blockscout → LighterBacking → Read contract → <code>baseTicks()</code> (size ×10), <code>entryNotional()</code>, <code>equityUnits()</code> / <code>collateralUnits()</code> (USDG ×1e6), <code>accountIndex()</code>.<br>
+RPC used by this page: <code>https://rpc.mainnet.chain.robinhood.com</code>. View-source to see the calls.</div></div>
+</div><script>
+const LB="__LIGHTERBACKING__", RPC="https://rpc.mainnet.chain.robinhood.com", API="https://api.rh.lighter.xyz/api/v1";
+const $=id=>document.getElementById(id); const pad=x=>BigInt(x).toString(16).padStart(64,"0");
+async function rpc(method,params){const r=await fetch(RPC,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})});const j=await r.json();if(j.error)throw new Error(j.error.message);return j.result}
+const call=(data)=>rpc('eth_call',[{to:LB,data},'latest']).then(BigInt);
+function row(name,a,b,ok,note){return `<tr><td>${name}</td><td>${a}</td><td>${b}</td><td class="${ok?'ok':'bad'}">${ok?'✓':'✗'}${note?' <span class="mut">'+note+'</span>':''}</td></tr>`}
+async function check(){
+  try{
+    const [acct,bt,en,eq,col,cc,nc,blk]=await Promise.all([call('0x9e9cb275'),call('0xfd0679e9'),call('0xa6e7b077'),call('0xb42748e6'),call('0x317016f5'),call('0x8da4d3c9'),call('0xe444504c'),rpc('eth_blockNumber',[])]);
+    $('acct').textContent=acct.toString(); $('apilink').href=`${API}/account?by=index&value=${acct}`;
+    const a=(await (await fetch(`${API}/account?by=index&value=${acct}`)).json()).accounts[0];
+    const p=(a.positions||[]).find(x=>String(x.market_id)==='44'&&parseFloat(x.position||0)!==0);
+    const apiSize=p?parseFloat(p.position):0, apiShort=p?String(p.sign).startsWith('-'):false, apiEntry=p?parseFloat(p.avg_entry_price):0, apiCol=parseFloat(a.collateral||0), apiPnl=p?parseFloat(p.unrealized_pnl||0):0;
+    const chSize=Number(bt)/10, chEntry=chSize?Number(en)/1e6/chSize:0, chEq=Number(eq)/1e6, chCol=Number(col)/1e6;
+    const sizeOk=Math.abs(apiSize-chSize)<=Math.max(0.5,apiSize*0.03)&&apiShort, entryOk=Math.abs(apiEntry-chEntry)<=apiEntry*0.03, colOk=Math.abs(apiCol-chCol)<=Math.max(2,apiCol*0.05);
+    const eqOk=Math.abs((apiCol+apiPnl)-chEq)<=Math.max(5,(apiCol+apiPnl)*0.08);
+    $('rows').innerHTML=row('direction',apiShort?'SHORT':'not short','SHORT (contract only ever sells)',apiShort)+row('size (PONS)',apiSize.toFixed(1),chSize.toFixed(1),sizeOk,'chain may lag one sync')+row('avg entry',apiEntry.toFixed(5),chEntry.toFixed(5),entryOk)+row('collateral (USDG)',apiCol.toFixed(2),chCol.toFixed(2),colOk,'chain tracks deposits − withdrawals')+row('equity (USDG)',(apiCol+apiPnl).toFixed(2),chEq.toFixed(2),eqOk,'on-chain uses the vault oracle for PONS')+row('account owner',a.l1_address||'—',LB,(a.l1_address||'').toLowerCase()===LB.toLowerCase(),'the contract itself');
+    const all=apiShort&&sizeOk&&entryOk&&colOk&&eqOk;
+    $('verdict').innerHTML=all?'<span class="ok">Exchange and chain agree.</span> The short is real and the contract owns it.':'<span class="bad">Mismatch.</span> Read the rows below; if it persists across a sync, something is wrong and you should say so loudly.';
+    $('when').textContent=`checked ${new Date().toLocaleTimeString()} · Robinhood Chain block ${parseInt(blk,16)} · re-checks every 20 s`;
+    const rows=[];for(let i=Math.max(0,Number(cc)-10);i<Number(cc);i++){const c=await rpc('eth_call',[{to:LB,data:'0xa888c2cd'+pad(i)},'latest']);const who='0x'+c.slice(26,66),punz=Number(BigInt('0x'+c.slice(66,130)))/1e18,req=Number(BigInt('0x'+c.slice(130,194)))/1e6,paid=Number(BigInt('0x'+c.slice(194,258)))/1e6;rows.push(`#${i} ${who.slice(0,8)}… burned ${punz.toLocaleString(undefined,{maximumFractionDigits:0})} __SYM__ → ${req.toFixed(3)} USDG, paid ${paid.toFixed(3)}${paid>=req?' ✓':' (pending)'}`)}
+    $('claims').textContent=rows.length?rows.join(' · ')+` · next to pay: #${nc}`:'no redemptions through the v2 door yet';
+  }catch(e){$('verdict').innerHTML='<span class="bad">could not read one of the sources</span> '+(e.message||e)}
+}
+check();setInterval(check,20000);
+</script></body></html>

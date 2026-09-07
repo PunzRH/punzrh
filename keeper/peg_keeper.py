@@ -92,6 +92,8 @@ class Peg:
 
     # ---- one step
     def step(self):
+        # after a trade, let the RPC catch up before reading the pool again (a stale slot0 made us sell twice on 7 Sep and overshoot)
+        if time.time() < getattr(self, "cool_until", 0): return None
         s, n, ratio = self.state()
         lo, hi, L = self.position()
         nav_wei = self.vault.functions.sharePriceWei(1).call()       # ETH per 1e18 sPONS
@@ -118,7 +120,7 @@ class Peg:
             start = max(s, lo)
             if n > start:
                 need = L * (n - start) // Q96
-                amt = min(need * 10 ** 6 // (10 ** 6 - self.fee) + 1, bal_s)
+                amt = min(need * 10 ** 6 // (10 ** 6 - self.fee) * 6 // 10 + 1, bal_s)
                 if amt > Web3.to_wei(0.5, "ether"):
                     # size back-off: if the pool can't fill the whole amount above 95% of NAV (thin pool, or price sitting above the
                     # range so `need` overshoots), halve until the gas estimate passes. Estimates fail off-chain: no gas, no nonce.
@@ -128,7 +130,7 @@ class Peg:
                         min_out = a * nav_wei // 10 ** 18 * 95 // 100   # we only sell above NAV
                         try:
                             h, st = self.sell_spons(a, min_out)
-                            acted = f"SELL {a/1e18:.2f} sPONS (need {need/1e18:.2f}) {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"; break
+                            acted = f"SELL {a/1e18:.2f} sPONS (need {need/1e18:.2f}) {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"; self.cool_until = time.time() + 45; break
                         except Exception as ex:
                             last_err = ex
                             if "8b063d73" not in str(ex) and "TooLittle" not in str(ex): raise
@@ -140,7 +142,7 @@ class Peg:
             start = min(s, hi)
             if start > n:
                 need = L * Q96 * (start - n) // (start * n)
-                amt = min(need * 10 ** 6 // (10 ** 6 - self.fee) + 1, spend, SWAP_MAX_ETH)
+                amt = min(need * 10 ** 6 // (10 ** 6 - self.fee) * 6 // 10 + 1, spend, SWAP_MAX_ETH)
                 if amt > Web3.to_wei(0.001, "ether"):
                     last_err = None
                     for a in (amt, amt // 2, amt // 4, amt // 8):
@@ -148,7 +150,7 @@ class Peg:
                         min_out = a * 10 ** 18 // nav_wei * 95 // 100
                         try:
                             h, st = self.buy_spons(a, min_out)
-                            acted = f"BUY sPONS with {a/1e18:.4f} ETH (need {need/1e18:.4f}) {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"; break
+                            acted = f"BUY sPONS with {a/1e18:.4f} ETH (need {need/1e18:.4f}) {'OK' if st == 1 else 'REVERTED'} {h[:12]}…"; self.cool_until = time.time() + 45; break
                         except Exception as ex:
                             last_err = ex
                             if "8b063d73" not in str(ex) and "TooLittle" not in str(ex): raise

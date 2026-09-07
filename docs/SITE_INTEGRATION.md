@@ -167,6 +167,12 @@ links the Blockscout write tabs so people can do everything without the site.
 
 ---
 
+
+### Proof page and v2 redeem (added 7 Sep, afternoon)
+
+- **/proof** (reference: https://live.punzrh.com/proof): the browser itself reads the Lighter API (`https://api.rh.lighter.xyz/api/v1/account?by=index&value=<accountIndex()>`, CORS open) and the LighterBacking contract via the public RPC, and shows a row-by-row match (direction, size, entry, collateral, equity, account owner = the contract) with a verdict. Nothing comes from our server. Copy this page's logic as a "Proof" tab; keep the wording that it is the visitor's browser doing the check.
+- **v2 redeem door** on the vault page: approve PUNZ to LighterBacking (`0x095ea7b3`+pad(LighterBacking)+pad(max)), then `redeem(uint256 amount, uint32 maxBuyPriceTicks)` = `0xf2180253`+pad(amount)+pad(floor(ponsPriceTicks()*1.02)); `ponsPriceTicks()` = `0x90766ae2`. Reads: `equityUnits()` `0xb42748e6` (USDG×1e6), `baseTicks()` `0xfd0679e9` (PONS×10), `claimCount()` `0x8da4d3c9`, `nextClaim()` `0xe444504c`, `claims(i)` `0xa888c2cd`+pad(i) → (who, punz, requestedUsdg×1e6, paidUsdg×1e6). `settle()` `0x11da60b4` (anyone). **Always show the two-door calculator**: v2 pays `equityUnits × amount / totalSupply` USDG; v1 pays `floorWeiPerToken × amount` ETH in sPONS. State which pays more. Warn when `baseTicks × amount / totalSupply < 200` (below Lighter's 20-PONS minimum order: the position won't shrink for that size; the holder is paid from free equity). Confirm dialog required; never pre-fill.
+
 ## 5. Pages to merge (what live.punzrh.com has today)
 
 - **/** Home. Big number = market cap. Stats strip (PUNZ price, burned, supply, ETH→short, v1 floor, v2 floor). **OPEN POSITION**

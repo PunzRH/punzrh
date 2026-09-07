@@ -323,6 +323,8 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         elif self.path.startswith("/stats"):
             body = STATS_PAGE.encode(); ct = "text/html; charset=utf-8"
+        elif self.path.startswith("/proof"):
+            body = PROOF_PAGE.encode(); ct = "text/html; charset=utf-8"
         elif self.path.startswith("/events"):
             with lock: body = json.dumps(events[-150:]).encode()
             ct = "application/json"
@@ -437,6 +439,11 @@ try:
     STATS_PAGE = open(os.path.join(HERE, "stats_page.html")).read()
 except FileNotFoundError:
     STATS_PAGE = "<p>stats_page.html missing</p>"
+try:
+    PROOF_PAGE = open(os.path.join(HERE, "proof_page.html")).read()
+except FileNotFoundError:
+    PROOF_PAGE = "<p>proof_page.html missing</p>"
+PROOF_PAGE = PROOF_PAGE.replace("__SYM__", _SYM).replace("__LIGHTERBACKING__", DEP.get("lighterBacking", ""))
 STATS_PAGE = (STATS_PAGE.replace("__SYM__", _SYM).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", ""))
               .replace("__LIGHTERBACKING__", DEP.get("lighterBacking", "")).replace("__FEEFEEDER__", DEP.get("feeFeeder", "")))
 

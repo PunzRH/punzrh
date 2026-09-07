@@ -38,6 +38,12 @@ Go long = <code>commitMint(0)</code> with ETH, then <code>claim(id, claimableEpo
 <div class="card"><h2>Redeem __SYM__ for its share of the short</h2><div class="k">Burns your __SYM__ and pays your pro-rata sPONS out of the Backing contract. Instant, no waiting. This is the floor.</div>
 <div class="row"><input id="rd" value="0"> __SYM__ <button id="rdb" class="red" disabled>Redeem</button><span id="rdv" class="k"></span></div></div>
 
+<div class="card" style="border-color:#2b4a5a"><h2 style="color:#7fd3ff">Redeem __SYM__ through the Lighter short (v2)</h2>
+<div class="k">Burns your __SYM__ and force-closes your share of the real PONS short on Robinhood Lighter, straight from the contract (no key, no permission). Your share of the equity is paid to you in USDG once the rollup delivers it, usually 1–7 minutes. <b>Two doors, one burn:</b> a __SYM__ can be redeemed through v1 (sPONS, instant) <i>or</i> v2 (USDG), not both. The calculator shows which pays more right now.</div>
+<div class="row"><input id="v2rd" value="0"> __SYM__ <button id="v2ap" disabled>Approve __SYM__</button><button id="v2rdb" class="red" disabled>Redeem via v2</button><button id="v2settle" class="alt" disabled>Settle claims</button></div>
+<div class="k" id="v2calc" style="margin-top:8px">enter an amount to compare the two doors</div>
+<div class="grid" id="v2stats" style="margin-top:10px"></div><div class="k" id="v2claims" style="margin-top:8px"></div></div>
+
 <div class="card" style="border-color:#3a4a7a"><h2 style="color:#8fb3ff">Boost the short with your liquidity — withdraw any time</h2>
 <div class="k">Optional. Put ETH + __SYM__ into the trading pool and every fee it earns goes straight into the PONS short on Robinhood Lighter (and burns __SYM__). You keep your money: take it back whenever you want, no lock, no waiting. You just don't keep the fees, the short does. Add both ETH and __SYM__ in roughly equal value; what doesn't fit the range stays yours and is put to work at the next re-centre.
 <span style="opacity:.7">This is a liquidity position (contract FeeFeeder3, range about ±49% around the price): the mix of ETH and __SYM__ you get back shifts with price, like any LP, and a big round trip costs some value. The previous contract (FeeFeeder2) bricked itself after a range exit; this one is fork-tested against that exact move.</span></div>
@@ -81,7 +87,7 @@ async function connect(){
   acct=(await window.ethereum.request({method:'eth_requestAccounts'}))[0];
   try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:CHAIN}]})}
   catch(e){if(e.code===4902){await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:CHAIN,chainName:'Robinhood Chain',nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18},rpcUrls:[RPC],blockExplorerUrls:['https://rh-scan.com']}]})}else throw e}
-  $('who').textContent=acct;['mL','mS','bbL','bbS','cl','rdb','ffA','ffAdd','ffWd','ffWdAll'].forEach(i=>{if($(i))$(i).disabled=false});log('connected '+acct);await stats();await mine();pending();ffMine();
+  $('who').textContent=acct;['mL','mS','bbL','bbS','cl','rdb','ffA','ffAdd','ffWd','ffWdAll','v2ap','v2rdb','v2settle'].forEach(i=>{if($(i))$(i).disabled=false});log('connected '+acct);await stats();await mine();pending();ffMine();v2Claims();
 }
 // ---- FeeFeeder3 (principal-preserving; fees → Lighter short, PUNZ burned)
 async function ffStats(){
@@ -130,6 +136,33 @@ const guard=f=>()=>f().catch(e=>log('error: '+(e.message||e)));
 $('ffA').onclick=guard(ffApprove);$('ffAdd').onclick=guard(ffAdd);$('ffWd').onclick=guard(()=>ffWithdraw(false));$('ffWdAll').onclick=guard(()=>ffWithdraw(true));
 try{const q=new URLSearchParams(location.search);if(q.get('eth'))$('ffE').value=q.get('eth');if(q.get('punz'))$('ffP').value=q.get('punz')}catch(e){}
 ffStats();setInterval(()=>{ffStats();ffMine()},20000);
+// ---- v2 redeem (LighterBacking): approve → redeem(amount, maxBuyPriceTicks) → settle pays USDG
+const USDG="0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"; let v2={};
+async function v2Stats(){
+  if(!LB||LB.startsWith('__'))return;
+  const [eq,bt,px,cc,nc,sup,fl]=await Promise.all([call(LB,'0xb42748e6'),call(LB,'0xfd0679e9'),call(LB,'0x90766ae2'),call(LB,'0x8da4d3c9'),call(LB,'0xe444504c'),call(COIN,'0x18160ddd'),call(BACKING,'0xd438686f')]);
+  let ethUsd=2500; try{ethUsd=(await (await fetch('/metrics')).json()).ethUsd||ethUsd}catch(e){}
+  v2={eq:Number(big(eq))/1e6,bt:Number(big(bt)),px:Number(big(px)),cc:Number(big(cc)),nc:Number(big(nc)),sup:eth(big(sup)),floor:eth(big(fl)),ethUsd};
+  $('v2stats').innerHTML=`<div><div class="k">v2 equity</div><div class="v">${v2.eq.toFixed(2)} USDG</div></div><div><div class="k">short size</div><div class="v">${(v2.bt/10).toFixed(1)} PONS</div></div><div><div class="k">v2 per 1M __SYM__</div><div class="v">${(v2.eq/v2.sup*1e6).toFixed(3)} USDG</div></div><div><div class="k">v1 per 1M __SYM__</div><div class="v">$${(v2.floor*1e6*ethUsd).toFixed(2)}</div></div><div><div class="k">claims queued</div><div class="v">${v2.cc-v2.nc}</div></div>`;
+  v2Calc();
+}
+function v2Calc(){const a=parseFloat($('v2rd').value||0);if(!(a>0)||!v2.sup){$('v2calc').textContent='enter an amount to compare the two doors';return}
+  const usdg=v2.eq*a/v2.sup, v1eth=v2.floor*a, v1usd=v1eth*v2.ethUsd, close=v2.bt*a/v2.sup/10;
+  const better=v1usd>usdg?'v1 (instant sPONS) pays more right now':'v2 pays more right now';
+  $('v2calc').innerHTML=`v2: ≈ <b>${usdg.toFixed(3)} USDG</b> and closes ${close.toFixed(1)} PONS of the short${close<20?' <span class="warn">(below Lighter\'s 20-PONS minimum: for this size the position won\'t shrink, you are paid from free equity)</span>':''} · v1: ≈ <b>${v1eth.toFixed(5)} ETH</b> ($${v1usd.toFixed(2)}) in sPONS → <b>${better}</b>`}
+async function v2Approve(){const h=await tx(COIN,'0x095ea7b3'+pad(LB)+pad(MAX));log('approve __SYM__ for LighterBacking sent '+h)}
+async function v2Redeem(){const a=wei($('v2rd').value);if(a<=0n)return log('enter an amount');
+  const al=big(await call(COIN,'0xdd62ed3e'+pad(acct)+pad(LB)));if(al<a)return log('approve __SYM__ for LighterBacking first, wait for it to confirm, then redeem');
+  const usdg=v2.eq*eth(a)/v2.sup, v1usd=v2.floor*eth(a)*v2.ethUsd;
+  if(!confirm(`This BURNS ${eth(a).toLocaleString()} __SYM__ permanently through the v2 door. You get ≈ ${usdg.toFixed(3)} USDG after settlement (1–7 min). The v1 door would pay ≈ $${v1usd.toFixed(2)} in sPONS for the same burn. Continue with v2?`))return log('v2 redeem cancelled');
+  const maxPx=Math.floor(v2.px*102/100);
+  const h=await tx(LB,'0xf2180253'+pad(a)+pad(maxPx));log(`v2 redeem sent ${h} — claim queued; USDG arrives after settle (the keeper calls it, or press Settle claims)`)}
+async function v2Settle(){const h=await tx(LB,'0x11da60b4');log('settle sent '+h)}
+async function v2Claims(){if(!acct||!v2.cc)return;const rows=[];for(let i=Math.max(0,v2.cc-40);i<v2.cc;i++){const c=await call(LB,'0xa888c2cd'+pad(i));const who='0x'+c.slice(26,66);if(who.toLowerCase()!==acct.toLowerCase())continue;const punz=eth(big('0x'+c.slice(66,130))),req=Number(big('0x'+c.slice(130,194)))/1e6,paid=Number(big('0x'+c.slice(194,258)))/1e6;rows.push(`#${i}: burned ${punz.toLocaleString(undefined,{maximumFractionDigits:0})} → ${req.toFixed(3)} USDG, paid ${paid.toFixed(3)}${paid>=req?' ✓':' (waiting for the rollup)'}`)}
+  $('v2claims').textContent=rows.length?'your v2 claims: '+rows.join(' · '):''}
+$('v2ap').onclick=guard(v2Approve);$('v2rdb').onclick=guard(v2Redeem);$('v2settle').onclick=guard(v2Settle);$('v2rd').oninput=v2Calc;
+v2Stats();setInterval(()=>{v2Stats();v2Claims()},30000);
+
 $('c').onclick=guard(connect);$('mL').onclick=guard(()=>mint(0));$('mS').onclick=guard(()=>mint(1));$('bbL').onclick=guard(()=>burn(0));$('bbS').onclick=guard(()=>burn(1));$('cl').onclick=guard(claim);$('rdb').onclick=guard(redeem);
 $('rd').oninput=()=>{$('rdv').textContent=`≈ ${(parseFloat($('rd').value||0)*cache.floor/cache.navS).toFixed(3)} sPONS`};
 stats();setInterval(()=>{stats();mine();pending()},20000);
