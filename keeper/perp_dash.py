@@ -87,6 +87,11 @@ def snapshot():
                 if FFL:   # original locked feeder: add its totals so "fed to short" is the full picture
                     s["ff_locked_eth_fed"] = FFL.functions.totalEthFed().call() / 1e18; s["ff_locked_punz_burned"] = FFL.functions.totalPunzBurned().call() / 1e18
                     s["ff_eth_fed"] = s.get("ff_eth_fed", 0) + s["ff_locked_eth_fed"]; s["ff_punz_burned"] = s.get("ff_punz_burned", 0) + s["ff_locked_punz_burned"]
+                if DEP.get("feeFeeder_bricked"):   # FeeFeeder2 (bricked 7 Sep): its counters still read; the fees it delivered were real
+                    if "FFB" not in globals():
+                        globals()["FFB"] = w3.eth.contract(address=Web3.to_checksum_address(DEP["feeFeeder_bricked"]), abi=json.load(open(os.path.join(HOME, "pons-perp", "out", "FeeFeeder2.sol", "FeeFeeder2.json")))["abi"])
+                    s["ff_bricked_eth_fed"] = FFB.functions.totalEthFed().call() / 1e18; s["ff_bricked_punz_burned"] = FFB.functions.totalPunzBurned().call() / 1e18
+                    s["ff_eth_fed"] = s.get("ff_eth_fed", 0) + s["ff_bricked_eth_fed"]; s["ff_punz_burned"] = s.get("ff_punz_burned", 0) + s["ff_bricked_punz_burned"]
                 # live view of the position from the Robinhood Lighter API (display only; the contract never depends on it)
                 import urllib.request as _u
                 acct = LB.functions.accountIndex().call()
@@ -198,9 +203,11 @@ def _parse(lg):
         if frm not in (ZERO,) and frm.lower() != PM_ADDR.lower():
             out = {"kind": "donate", "spons": v / 1e18, "msg": f"💝 {v/1e18:.2f} sPONS sent to Backing by {frm[:8]}… (floor up for everyone)"}
     return out
+STATS = None; STATS_UPTO = 0   # protocol stats (punz_stats.py): backfill covers [launch, STATS_UPTO]; the live poller feeds it after that
+EV_ADDRS = [PM_ADDR, VAULT_ADDR, COIN_ADDR, SPONS] + ([BACK_ADDR] if BACK_ADDR else [])
 def event_poller():
-    last = w3.eth.block_number - int(os.environ.get("EVENT_LOOKBACK_BLOCKS", "15000"))
-    addrs = [PM_ADDR, VAULT_ADDR, COIN_ADDR, SPONS] + ([BACK_ADDR] if BACK_ADDR else [])
+    last = STATS_UPTO or (w3.eth.block_number - int(os.environ.get("EVENT_LOOKBACK_BLOCKS", "15000")))
+    addrs = EV_ADDRS
     while True:
         try:
             head = w3.eth.block_number
@@ -215,6 +222,8 @@ def event_poller():
                         if p:
                             _ev_seen.add(key); th = lg["transactionHash"].hex(); th = th if th.startswith("0x") else "0x" + th
                             p.update({"t": _ts(lg["blockNumber"]), "block": lg["blockNumber"], "tx": th}); new.append(p)
+                            if STATS and p["kind"] in ("buy", "sell", "burn", "harvest", "redeem"):
+                                with lock: STATS.add(p)
                     frm = to + 1
                 if new:
                     new.sort(key=lambda e: (e["block"], e["tx"]))
@@ -307,6 +316,13 @@ class H(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         elif self.path.startswith("/long") or self.path.startswith("/vault"):
             body = LONG_PAGE.encode(); ct = "text/html; charset=utf-8"
+        elif self.path.startswith("/stats.json"):
+            with lock: n = history[-1] if history else {}
+            body = json.dumps(STATS.summary(n) if STATS else {"error": "stats not started"}).encode(); ct = "application/json"
+            self.send_response(200); self.send_header("Content-Type", ct); self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-store"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
+        elif self.path.startswith("/stats"):
+            body = STATS_PAGE.encode(); ct = "text/html; charset=utf-8"
         elif self.path.startswith("/events"):
             with lock: body = json.dumps(events[-150:]).encode()
             ct = "application/json"
@@ -417,11 +433,24 @@ LONG_PAGE = (LONG_PAGE.replace("__SYM__", _SYM).replace("__VAULT__", DEP["pool"]
              .replace("__SPONS__", DEP["shortToken_sPONS"]).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", ""))
              .replace("__LIGHTERBACKING__", DEP.get("lighterBacking", "")).replace("__FEEFEEDER__", DEP.get("feeFeeder", "")))
 
+try:
+    STATS_PAGE = open(os.path.join(HERE, "stats_page.html")).read()
+except FileNotFoundError:
+    STATS_PAGE = "<p>stats_page.html missing</p>"
+STATS_PAGE = (STATS_PAGE.replace("__SYM__", _SYM).replace("__COIN__", DEP.get("coin", TSPONS)).replace("__BACKING__", DEP.get("backing", ""))
+              .replace("__LIGHTERBACKING__", DEP.get("lighterBacking", "")).replace("__FEEFEEDER__", DEP.get("feeFeeder", "")))
+
 if __name__ == "__main__":
     if os.path.exists(HIST):
         try: history.extend(json.load(open(HIST)))
         except Exception: pass
     if not history and DEP_PATH.endswith("deployment.json"): seed_from_tracker()  # only the original test deployment shares perp_tracker.out
+    if BACKING and DEP.get("launchedAt"):
+        import punz_stats, datetime as _dt
+        _launch_ts = _dt.datetime.strptime(DEP["launchedAt"], "%Y-%m-%d %H:%M").timestamp() - 600
+        STATS_UPTO = w3.eth.block_number - int(os.environ.get("EVENT_LOOKBACK_BLOCKS", "15000"))
+        STATS = punz_stats.Stats(w3, _parse, EV_ADDRS, _launch_ts, lock)
+        threading.Thread(target=STATS.backfill, args=(STATS_UPTO, _ts), kwargs={"log": lambda m: print(m, flush=True)}, daemon=True).start()
     threading.Thread(target=poller, daemon=True).start()
     threading.Thread(target=event_poller, daemon=True).start()
     print(f"sPONS dashboard on http://localhost:{PORT}  ({len(history)} history points)", flush=True)

@@ -124,6 +124,14 @@ Same field names as the internal snapshot: `t, pons, nav_s, nav_l, long_bal, sho
 backing_spons, eth_to_short, burned, eth_usd, supply, v2_*, ff_*, lighter_*`. Use it for charts: PONS vs sPONS NAV vs PUNZ floor,
 normalized to 100 at the first point.
 
+### `GET https://live.punzrh.com/stats.json` — protocol stats rebuilt from chain events since launch (CORS `*`)
+
+`split` (holders 100 / creator 0 / treasury 0 / keeper 0), `volume` {eth, usd, buys, sells}, `fees` {generated_eth, generated_coin,
+delivered_to_v1_short_eth, delivered_to_v2_short_eth, coin_burned, burned_pct_of_supply}, `backing` {v1_spons, v1_value_eth/usd,
+v2_collateral_usdg, v2_short_pons, v2_entry, v2_mark, v2_notional_usd, v2_upnl_usdg, v2_liq, total_backing_usd, supply, market_cap_usd},
+`redemptions` {count, coin, spons_paid}, `daily[]` and `hourly[]` (last 72 h) with {t, volume_eth, buy_eth, sell_eth, trades,
+fees_eth_to_short, fees_coin_burned, burned, delivered_eth, redeems}. Rendered reference page: https://live.punzrh.com/stats.
+
 ### Exchange-side truth (no CORS guarantees, show as a link)
 
 `https://api.rh.lighter.xyz/api/v1/account?by=index&value=23662` → `accounts[0].collateral`, `positions[]` (market_id 44 = PONS-PERP;

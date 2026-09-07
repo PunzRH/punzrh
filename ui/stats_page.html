@@ -1,0 +1,69 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__SYM__ · protocol stats</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>body{margin:0;background:#0b0f14;color:#e6edf3;font:15px -apple-system,Inter,system-ui,sans-serif}.wrap{max-width:1100px;margin:0 auto;padding:24px}
+h1{font-size:26px;margin:0 0 4px}.sub{color:#8b949e;margin-bottom:18px;line-height:1.45}.nav{font-size:14px;color:#8b949e;margin-bottom:16px}.nav a{margin-right:12px;color:#58a6ff}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.card{background:#111823;border:1px solid #1f2a37;border-radius:12px;padding:16px}
+.k{color:#8b949e;font-size:12px;letter-spacing:.04em;text-transform:uppercase}.v{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;margin:4px 0}.s{color:#8b949e;font-size:13px;line-height:1.45}
+.g{color:#3ddc84}.r{color:#f85149}.b{color:#8fb3ff}.bar{height:8px;background:#1f2a37;border-radius:4px;overflow:hidden;margin:6px 0 10px}.bar i{display:block;height:100%;background:#3ddc84}
+.row{display:flex;justify-content:space-between;font-size:14px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:800px){.two{grid-template-columns:1fr}}
+canvas{width:100%!important;height:220px!important}.foot{color:#8b949e;font-size:12px;margin-top:18px;line-height:1.6}code{color:#c9d1d9;font-size:12px}.tag{display:inline-block;border:1px solid #2b5a3b;color:#3ddc84;border-radius:6px;padding:2px 8px;font-size:12px;margin-left:8px}</style></head><body><div class="wrap">
+<div class="nav"><a href="/">live status</a><a href="/live">the machine</a><a href="/vault">vault</a><a href="/how">how it works</a><a href="/stats.json">stats.json</a><a href="https://github.com/PunzRH/punzrh">source</a></div>
+<h1>Everything the fees have done <span class="tag" id="live">live</span></h1>
+<div class="sub">Every number below is rebuilt from chain events since launch: swaps on the __SYM__/ETH pool, burns, harvests, redemptions. No estimates from a database, no team wallet in the flow. <span id="since"></span></div>
+
+<div class="grid">
+<div class="card"><div class="k">Fees generated</div><div class="v" id="fees_eth">—</div><div class="s"><span id="fees_usd"></span> · 3% of every buy, in ETH. Plus <b id="fees_coin">—</b> __SYM__ from sells, all burned.</div></div>
+<div class="card"><div class="k">Delivered into the short</div><div class="v g" id="deliv">—</div><div class="s">v1 vault short <b id="deliv_v1">—</b> ETH · Robinhood Lighter short <b id="deliv_v2">—</b> ETH</div></div>
+<div class="card"><div class="k">__SYM__ burned</div><div class="v r" id="burned">—</div><div class="s"><b id="burned_pct">—</b> of the initial 1B supply, gone for good.</div></div>
+<div class="card"><div class="k">Volume since launch</div><div class="v" id="vol">—</div><div class="s"><span id="trades"></span></div></div>
+</div>
+
+<div class="two" style="margin-top:14px">
+<div class="card"><div class="k">Where every fee goes <span class="tag">fee-weighted</span></div>
+<div style="margin-top:10px"><div class="row"><span>Fees → PONS short (holders)</span><b class="g">100%</b></div><div class="bar"><i style="width:100%"></i></div>
+<div class="row"><span>Fees → creator</span><b>0%</b></div><div class="bar"><i style="width:0"></i></div>
+<div class="row"><span>Fees → treasury</span><b>0%</b></div><div class="bar"><i style="width:0"></i></div>
+<div class="row"><span>Fees → keeper / ops</span><b>0%</b></div><div class="bar"><i style="width:0"></i></div></div>
+<div class="s">The contracts that receive the fees have no owner and no withdraw function. ETH becomes short exposure that any holder can redeem; __SYM__ is burned. The keeper pays its own gas.</div></div>
+<div class="card"><div class="k">Exposure <span class="tag" id="exp_live">live</span></div>
+<div style="margin-top:10px" class="row"><span>v1 backing (sPONS × NAV)</span><b id="v1_val">—</b></div>
+<div class="row"><span>v2 collateral on Lighter</span><b id="v2_col">—</b></div>
+<div class="row"><span>v2 short</span><b id="v2_pos">—</b></div>
+<div class="row"><span>v2 unrealised PnL</span><b id="v2_pnl">—</b></div>
+<div class="row"><span>v2 liquidation price</span><b id="v2_liq">—</b></div>
+<div class="row" style="margin-top:8px;border-top:1px solid #1f2a37;padding-top:8px"><span>Total backing</span><b class="g" id="tot_back">—</b></div>
+<div class="row"><span>Backing / market cap</span><b id="back_ratio">—</b></div>
+<div class="s" style="margin-top:8px">Redemptions so far: <b id="redeems">—</b>. Any holder can burn __SYM__ for its share of either short, any time.</div></div>
+</div>
+
+<div class="two" style="margin-top:14px">
+<div class="card"><div class="k">ETH into the short · per day</div><canvas id="c1"></canvas></div>
+<div class="card"><div class="k">__SYM__ burned · per day</div><canvas id="c2"></canvas></div>
+<div class="card"><div class="k">Volume (ETH) · per day</div><canvas id="c3"></canvas></div>
+<div class="card"><div class="k">Last 72 hours · fees per hour (ETH)</div><canvas id="c4"></canvas></div>
+</div>
+
+<div class="foot">Sources: PoolManager Swap events for the __SYM__/ETH pool (volume, fee = 3% of the input side), __SYM__ Transfer-to-zero (burns), Backing <code>Harvested</code> (ETH delivered to v1), FeeFeeder <code>totalEthFed</code> (ETH delivered to v2), Backing <code>Payout</code> (redemptions), Robinhood Lighter API account 23662 (v2 position). Contracts: __SYM__ <code>__COIN__</code> · Backing <code>__BACKING__</code> · LighterBacking <code>__LIGHTERBACKING__</code> · FeeFeeder3 <code>__FEEFEEDER__</code>. Raw JSON: <a href="/stats.json">/stats.json</a>.</div>
+</div><script>
+const $=id=>document.getElementById(id); const f=(x,d=2)=>x==null?'—':Number(x).toLocaleString(undefined,{maximumFractionDigits:d}); const usd=x=>x==null?'—':'$'+Number(x).toLocaleString(undefined,{maximumFractionDigits:0});
+const day=t=>new Date(t*1000).toLocaleDateString(undefined,{month:'short',day:'numeric'}); const hr=t=>new Date(t*1000).toLocaleTimeString([],{hour:'2-digit'});
+let charts={};
+function bar(id,labels,data,color){if(charts[id]){charts[id].data.labels=labels;charts[id].data.datasets[0].data=data;charts[id].update();return}
+  charts[id]=new Chart($(id),{type:'bar',data:{labels,datasets:[{data,backgroundColor:color,borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b949e'},grid:{display:false}},y:{ticks:{color:'#8b949e'},grid:{color:'#1f2a37'}}}}})}
+async function load(){
+  const s=await (await fetch('/stats.json',{cache:'no-store'})).json(); if(s.error)return;
+  const eu=s.backing.market_cap_usd&&s.backing.supply?null:null;
+  $('since').textContent='Since launch '+new Date(s.since*1000).toLocaleString()+(s.backfill_complete?'':' · history still loading');
+  $('fees_eth').textContent=f(s.fees.generated_eth,3)+' ETH'; $('fees_usd').textContent=usd(s.volume.usd? s.fees.generated_eth*(s.volume.usd/s.volume.eth):null); $('fees_coin').textContent=f(s.fees.generated_coin/1e6,2)+'M';
+  const dv=(s.fees.delivered_to_v1_short_eth||0)+(s.fees.delivered_to_v2_short_eth||0); $('deliv').textContent=f(dv,3)+' ETH'; $('deliv_v1').textContent=f(s.fees.delivered_to_v1_short_eth,3); $('deliv_v2').textContent=f(s.fees.delivered_to_v2_short_eth,4);
+  $('burned').textContent=f(s.fees.coin_burned/1e6,1)+'M'; $('burned_pct').textContent=f(s.fees.burned_pct_of_supply,2)+'%';
+  $('vol').textContent=f(s.volume.eth,2)+' ETH'; $('trades').textContent=usd(s.volume.usd)+' · '+s.volume.buys+' buys / '+s.volume.sells+' sells';
+  $('v1_val').textContent=f(s.backing.v1_value_eth,3)+' ETH ('+usd(s.backing.v1_value_usd)+')'; $('v2_col').textContent=f(s.backing.v2_collateral_usdg,0)+' USDG';
+  $('v2_pos').textContent=f(s.backing.v2_short_pons,1)+' PONS short @ '+f(s.backing.v2_entry,4)+' ('+usd(s.backing.v2_notional_usd)+')'; const p=s.backing.v2_upnl_usdg; $('v2_pnl').textContent=(p>=0?'+':'')+f(p,2)+' USDG'; $('v2_pnl').className=p>=0?'g':'r';
+  $('v2_liq').textContent=f(s.backing.v2_liq,4); $('tot_back').textContent=usd(s.backing.total_backing_usd); $('back_ratio').textContent=s.backing.market_cap_usd?f(100*s.backing.total_backing_usd/s.backing.market_cap_usd,1)+'%':'—';
+  $('redeems').textContent=s.redemptions.count+' ('+f(s.redemptions.coin/1e6,2)+'M __SYM__ → '+f(s.redemptions.spons_paid,1)+' sPONS)';
+  const d=s.daily; bar('c1',d.map(x=>day(x.t)),d.map(x=>+(x.delivered_eth||x.fees_eth_to_short).toFixed(4)),'#3ddc84'); bar('c2',d.map(x=>day(x.t)),d.map(x=>Math.round(x.burned)),'#f85149'); bar('c3',d.map(x=>day(x.t)),d.map(x=>+x.volume_eth.toFixed(3)),'#8fb3ff');
+  const h=s.hourly; bar('c4',h.map(x=>hr(x.t)),h.map(x=>+x.fees_eth_to_short.toFixed(4)),'#3ddc84');
+}
+load();setInterval(load,30000);
+</script></body></html>
